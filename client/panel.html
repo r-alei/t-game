@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Canlı Oyun · Kontrol</title>
+    <link rel="stylesheet" href="/src/styles/panel.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Kontrol paneli</h1>
+        <span id="status" class="pill">bağlanıyor…</span>
+      </header>
+
+      <section>
+        <h2>TikTok bağlantısı</h2>
+        <form id="connect">
+          <input id="username" placeholder="@kullaniciadi" autocomplete="off" />
+          <button type="submit">Bağlan</button>
+          <button type="button" id="disconnect" class="ghost">Kes</button>
+        </form>
+        <p id="message" class="muted">Yayın açıkken kullanıcı adını yaz.</p>
+      </section>
+
+      <section>
+        <h2>Oyun</h2>
+        <div class="row">
+          <button data-control="reset">Sıfırla</button>
+          <button data-control="pause" class="ghost">Duraklat</button>
+          <button data-control="resume" class="ghost">Devam</button>
+          <button data-control="toggle-guides" class="ghost">TikTok alanlarını göster/gizle</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Test olayları <small class="muted">(yayın açmadan dene)</small></h2>
+        <div class="row">
+          <input id="simName" placeholder="ad (boş = rastgele)" />
+          <input id="simText" placeholder="yorum" value="selam" />
+          <button id="simComment">Yorum</button>
+          <button data-sim='{"type":"like","count":20}'>20 beğeni</button>
+          <button data-sim='{"type":"follow"}'>Takip</button>
+        </div>
+        <div class="row" id="giftButtons"></div>
+        <div class="row">
+          <button data-sim='{"type":"crowd","seconds":30}'>30 sn kalabalık</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Son olaylar</h2>
+        <ol id="log"></ol>
+      </section>
+    </main>
+    <script type="module" src="/src/panel.ts"></script>
+  </body>
+</html>

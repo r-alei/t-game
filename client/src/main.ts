@@ -1,0 +1,44 @@
+/** Yayın ekranının giriş noktası: sahneyi kurar, oyunu seçer, canlı olayları bağlar. */
+import { Stage } from './engine/stage.ts';
+import { Loop } from './engine/loop.ts';
+import { Banner } from './engine/banner.ts';
+import { renderGuides } from './engine/layout.ts';
+import { LiveClient } from './net/live.ts';
+import { DEFAULT_GAME, GAMES } from './games/registry.ts';
+
+const params = new URLSearchParams(location.search);
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+const frame = $('frame');
+const hud = $('hud');
+const guides = $('guides');
+
+const stage = new Stage($('scene') as HTMLCanvasElement, frame);
+const banner = new Banner(hud);
+
+const gameName = params.get('game') ?? DEFAULT_GAME;
+const game = (GAMES[gameName] ?? GAMES[DEFAULT_GAME])();
+game.start({ stage, hud, banner });
+
+renderGuides(guides);
+guides.hidden = params.get('guides') !== '1';
+
+const loop = new Loop(
+  (dt) => game.update(dt),
+  () => stage.render(),
+);
+loop.start();
+
+const live = new LiveClient();
+live.on((msg) => {
+  if (msg.kind === 'event') game.onEvent(msg.event);
+  else if (msg.kind === 'control') {
+    if (msg.command === 'reset') game.reset();
+    if (msg.command === 'pause') loop.paused = true;
+    if (msg.command === 'resume') loop.paused = false;
+    if (msg.command === 'toggle-guides') guides.hidden = !guides.hidden;
+  }
+});
+
+// Geliştirmede dosya değişince sahneyi temiz yeniden yükle.
+if (import.meta.hot) import.meta.hot.dispose(() => location.reload());
