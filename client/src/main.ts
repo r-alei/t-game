@@ -4,6 +4,7 @@ import { Loop } from './engine/loop.ts';
 import { Banner } from './engine/banner.ts';
 import { renderGuides } from './engine/layout.ts';
 import { LiveClient } from './net/live.ts';
+import { setSoundEnabled } from './engine/sfx.ts';
 import { DEFAULT_GAME, GAMES } from './games/registry.ts';
 
 const params = new URLSearchParams(location.search);
@@ -37,8 +38,21 @@ live.on((msg) => {
     if (msg.command === 'pause') loop.paused = true;
     if (msg.command === 'resume') loop.paused = false;
     if (msg.command === 'toggle-guides') guides.hidden = !guides.hidden;
+    if (msg.command === 'sound-on') setSoundEnabled(true);
+    if (msg.command === 'sound-off') setSoundEnabled(false);
   }
 });
+
+// Masaüstü yayın penceresinde (çerçevesiz Electron): sürükleyerek taşınır, Esc kapatır
+if (navigator.userAgent.includes('Electron')) {
+  document.documentElement.style.setProperty('-webkit-app-region', 'drag');
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') window.close();
+  });
+}
+
+// Geliştirmede konsoldan incelemek için
+if (import.meta.env.DEV) Object.assign(window, { game, stage });
 
 // Geliştirmede dosya değişince sahneyi temiz yeniden yükle.
 if (import.meta.hot) import.meta.hot.dispose(() => location.reload());

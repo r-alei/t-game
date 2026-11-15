@@ -12,6 +12,24 @@ type Handlers = {
 
 const MAX_ATTEMPTS = 5;
 
+/** Kütüphane hatasını panelde okunacak bir cümleye çevirir. */
+function explain(error: unknown, hasKey: boolean): string {
+  const name = (error as Error)?.constructor?.name ?? 'Hata';
+  const detail = (error as Error)?.message ?? '';
+  console.warn(`[tiktok] ${name}: ${detail}`);
+  if (/Offline/i.test(name)) return 'Hesap şu an canlı yayında değil';
+  if (/InvalidUniqueId/i.test(name)) return 'Kullanıcı adı geçersiz';
+  if (/Business plan|Premium/i.test(`${name} ${detail}`)) {
+    return 'İmza servisi bu isteği ücretli plana bağladı (Business plan)';
+  }
+  if (/Signature|SignAPI/i.test(name)) {
+    return hasKey
+      ? `İmza servisi isteği reddetti, EULER_API_KEY'i kontrol et (${detail})`
+      : 'İmza servisi anahtarsız isteği reddetti. .env dosyasına EULER_API_KEY yaz ve sunucuyu yeniden başlat';
+  }
+  return `Bağlanamadı (${name}${detail ? `: ${detail}` : ''})`;
+}
+
 export class TikTokSource {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private conn: any = null;
@@ -49,7 +67,10 @@ export class TikTokSource {
     const signApiKey = process.env.EULER_API_KEY;
     const conn = new mod.TikTokLiveConnection(username, {
       processInitialData: false,
-      enableExtendedGiftInfo: true,
+      // Açık olursa bağlanırken hediye listesi çekilir; o istek Euler'in ücretli
+      // (Business) imza ucunu ister ve bağlantıyı düşürür. Hediye değeri zaten
+      // her hediye olayının içinde geliyor (normalize.ts → giftDetails).
+      enableExtendedGiftInfo: false,
       ...(signApiKey ? { signApiKey } : {}),
     });
     this.conn = conn;
@@ -83,9 +104,7 @@ export class TikTokSource {
     } catch (error) {
       if (gen !== this.generation) return;
       this.conn = null;
-      const name = (error as Error)?.constructor?.name ?? 'Hata';
-      const offline = /Offline/i.test(name);
-      this.retry(gen, username, n, offline ? 'Hesap şu an canlı yayında değil' : `Bağlanamadı (${name})`);
+      this.retry(gen, username, n, explain(error, Boolean(signApiKey)));
     }
   }
 

@@ -2,7 +2,32 @@
 
 TikTok LIVE için three.js ile yazılmış etkileşimli yayın oyunu altyapısı.
 
-## Çalıştırma
+İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [docs/BOGAZ-VAPURU.md](docs/BOGAZ-VAPURU.md).
+
+## Yayında kullanım
+
+1. `BASLAT.cmd` dosyasına çift tıkla. Şunları açar:
+   - "SUNUCU" penceresi: yayın boyunca açık kalmalı.
+   - Çerçevesiz dikey oyun penceresi (1080p ekranda 576×1024, tam 9:16). Sürükleyerek taşınır, **Esc** kapatır.
+   - Tarayıcıda kontrol paneli.
+2. LIVE Studio → Kaynak ekle → **Pencere yakalama** → "Canlı Oyun · Yayın Ekranı" penceresini seç ve dikey tuvale tam ekran yay.
+   - LIVE Studio'nun "Bağlantı/Link" kaynağı yerel (127.0.0.1) adresleri kabul etmiyor; bu yüzden pencere yakalama kullanılıyor.
+   - Pencere siyah görünürse önce Oyun yakalama'yı dene, olmazsa yakalama yöntemini değiştir.
+3. TikTok yayınını başlat, panelde kullanıcı adını yaz ve **Bağlan**'a bas.
+
+Oyun penceresinin üstüne başka pencere gelmesi sorun değil, ama pencereyi **küçültme**: küçültülen pencere yakalanmaz.
+
+Bitirince: oyun penceresinde Esc'ye bas, "SUNUCU" penceresini kapat.
+
+Oyun sesleri varsayılan olarak **kapalı**; panelde "Ses aç" ile açılır.
+
+### Performans
+
+- Oyun yalnız pencerenin gösterdiği çözünürlükte çizer ve 30 fps ile sınırlıdır (TikTok yayını zaten 30 fps).
+- Ölçüm (13 Kasım 2026, bu bilgisayar): oyun penceresi GPU'nun ~%94'ünü kullanıyordu, düzeltmeden sonra ~%22.
+- Daha da azaltmak için `desktop/main.cjs` içindeki adrese `?fps=24` eklenebilir. Daha akıcı görüntü için `?fps=60` (GPU yükü yaklaşık iki katına çıkar).
+
+## Geliştirme
 
 ```bash
 npm install
@@ -39,7 +64,8 @@ client/
     games/
       Game.ts      Her oyunun uyduğu arayüz
       registry.ts  Oyun listesi (?game=ad ile seçilir)
-      demo/        Altyapı testi için örnek oyun
+      vapur/       Boğaz Vapuru
+      demo/        Altyapı testi için örnek oyun (?game=demo)
 tests/             Vitest testleri
 docs/              Fikir ve tasarım belgeleri
 ```

@@ -79,4 +79,4 @@ export type SimulateRequest =
   | { type: 'crowd'; seconds: number };
 
 /** Yayıncının panelden oyuna gönderdiği komutlar */
-export type ControlCommand = 'reset' | 'pause' | 'resume' | 'toggle-guides';
+export type ControlCommand = 'reset' | 'pause' | 'resume' | 'toggle-guides' | 'sound-on' | 'sound-off';

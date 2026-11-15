@@ -11,7 +11,8 @@ const H = 128;
 export function colorFor(id: string): string {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return `hsl(${h % 360} 80% 58%)`;
+  // Virgüllü yazım: hem CSS hem THREE.Color okuyabilsin
+  return `hsl(${h % 360}, 80%, 58%)`;
 }
 
 export function createNameTag(viewer: Viewer, opts: { accent?: string } = {}): THREE.Sprite {
@@ -51,7 +52,8 @@ export function createNameTag(viewer: Viewer, opts: { accent?: string } = {}): T
     }
     ctx.restore();
 
-    ctx.fillStyle = '#fff';
+    // Saf beyaz değil: gece sahnelerindeki parlama (bloom) yazıyı dağıtmasın
+    ctx.fillStyle = '#e8e8e8';
     ctx.font = 'bold 50px Segoe UI, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -67,7 +69,7 @@ export function createNameTag(viewer: Viewer, opts: { accent?: string } = {}): T
     img.src = viewer.avatar;
   }
 
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true, toneMapped: false }));
   sprite.scale.set(2.8, 0.7, 1);
   sprite.renderOrder = 10;
   return sprite;

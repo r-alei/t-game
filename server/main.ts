@@ -13,6 +13,13 @@ import { Dedupe } from './dedupe.ts';
 import { TikTokSource } from './sources/tiktok.ts';
 import { crowd, simulate } from './sources/simulator.ts';
 
+// .env varsa oku (EULER_API_KEY gibi gizli değerler buraya yazılır, git'e girmez)
+try {
+  process.loadEnvFile(join(process.cwd(), '.env'));
+} catch {
+  /* .env yok, sorun değil */
+}
+
 const PORT = Number(process.env.PORT ?? 4300);
 const HOST = '127.0.0.1';
 const isProd = process.env.NODE_ENV === 'production';

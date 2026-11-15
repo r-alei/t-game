@@ -16,9 +16,10 @@ export class Banner {
     this.el = document.createElement('div');
     Object.assign(this.el.style, {
       position: 'absolute',
+      // Alt yazı (lower third): güvenli alanın altında, "vapura bin" çağrısının üstünde
       left: `${SAFE.x}px`,
       width: `${SAFE.w}px`,
-      top: `${SAFE.y + 10}px`,
+      top: `${SAFE.y + SAFE.h - 215}px`,
       display: 'flex',
       alignItems: 'center',
       gap: '24px',
@@ -43,11 +44,11 @@ export class Banner {
     if (!item) return void (this.busy = false);
     this.busy = true;
     const avatar = item.viewer.avatar
-      ? `<img src="${encodeURI(item.viewer.avatar)}" style="width:120px;height:120px;border-radius:50%;border:5px solid #fff;object-fit:cover">`
+      ? `<img src="${encodeURI(item.viewer.avatar)}" style="width:96px;height:96px;border-radius:50%;border:4px solid #fff;object-fit:cover">`
       : '';
     this.el.innerHTML = `${avatar}<div>
-      <div class="t" style="font:800 58px/1.05 Segoe UI,sans-serif"></div>
-      <div class="s" style="font:600 36px/1.2 Segoe UI,sans-serif;opacity:.9;margin-top:6px"></div></div>`;
+      <div class="t" style="font:800 46px/1.05 Segoe UI,sans-serif"></div>
+      <div class="s" style="font:600 30px/1.2 Segoe UI,sans-serif;opacity:.9;margin-top:6px"></div></div>`;
     // Kullanıcı metni her zaman textContent ile yazılır (HTML enjeksiyonu yok).
     const t = this.el.querySelector('.t')!;
     const s = this.el.querySelector('.s')!;
