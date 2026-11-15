@@ -137,6 +137,7 @@ export function normalize(type: LiveEventType, raw: Raw, now = Date.now(), strea
           giftId,
           giftName: String(details.giftName ?? details.name ?? known?.name ?? 'Hediye'),
           count,
+          ...(streak ? { streakTotal: total } : {}),
           unitValue,
           value: unitValue * count,
         },

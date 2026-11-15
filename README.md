@@ -1,8 +1,33 @@
-# Canlı Oyun
+# Canlı Oyun (t-game)
 
 TikTok LIVE için three.js ile yazılmış etkileşimli yayın oyunu altyapısı.
 
 İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [client/src/games/vapur/README.md](client/src/games/vapur/README.md).
+
+**Düğün Var!** oyunu da hazırdır: sahne boş başlar ve gerçek izleyicilerle dolar. Gül ×1 halaybaşı, aynı seride Gül ×10 gelin, Gül ×20 damat; Parmak Kalp ×1 kaynana yapar. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
+
+## Başka bilgisayarda kurulum ve birlikte geliştirme
+
+Node.js 24 ile doğrulanmıştır. Git ve Node.js kurulu bilgisayarda:
+
+```bash
+git clone https://github.com/r-alei/t-game.git
+cd t-game
+npm ci
+npm run dev
+```
+
+Düğün ekranı: `http://127.0.0.1:4300/?game=dugun`. Kontrol paneli: `http://127.0.0.1:4300/panel`. Canlı yayın bağlantısı olmadan paneldeki test düğmeleriyle oynanabilir; Gül ×10 ve Gül ×20 düğmeleri rol değişimlerini denetir. Windows yayın penceresi için `client/src/games/dugun/BASLAT.cmd` çalıştırılır.
+
+Her değişiklik için `main` üzerinden ayrı dal açıp pull request ile birleştirin:
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c ozellik/degisiklik-adi
+```
+
+Göndermeden önce `npm test`, `npm run typecheck` ve `npm run build` çalıştırın. `node_modules/` ve `dist/` yerelde üretilir. Gerektiğinde `EULER_API_KEY` proje kökündeki `.env` dosyasında tutulur; bu dosya Git'e dahil edilmez.
 
 ## Yayında kullanım
 

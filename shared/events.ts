@@ -34,7 +34,9 @@ export interface GiftEvent extends BaseEvent {
   type: 'gift';
   giftId: string;
   giftName: string;
-  /** Seri bittikten sonraki toplam adet */
+  /** Seri hediyenin bu güncellemedeki toplamı; count yalnız yeni artıştır. */
+  streakTotal?: number;
+  /** Bu güncellemeyle eklenen adet */
   count: number;
   /** Tek hediyenin jeton (elmas) değeri */
   unitValue: number;

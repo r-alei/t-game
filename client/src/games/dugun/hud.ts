@@ -71,7 +71,7 @@ export class Hud {
   private readonly root = document.createElement('div');
   private readonly clock: HTMLDivElement;
   private readonly cards: Record<'gelin' | 'damat', Card>;
-  private readonly menuCells = new Map<string, HTMLDivElement>();
+  private readonly menuCells = new Map<string, HTMLDivElement[]>();
   private readonly tempo: HTMLDivElement;
   private readonly tempoFill: HTMLElement;
   private readonly tempoText: HTMLSpanElement;
@@ -113,12 +113,14 @@ export class Hud {
       const cell = div('');
       const img = document.createElement('img');
       img.src = item.icon;
-      img.alt = '';
+      img.alt = item.giftId === '5655' ? 'Gül' : item.giftId === '5487' ? 'Parmak Kalp' : 'Konfeti';
       const label = document.createElement('span');
       label.textContent = item.label;
-      cell.append(img, label);
+      const amount = document.createElement('span');
+      amount.textContent = `×${item.count}`;
+      cell.append(img, amount, label);
       menu.append(cell);
-      this.menuCells.set(item.giftId, cell);
+      this.menuCells.set(item.giftId, [...(this.menuCells.get(item.giftId) ?? []), cell]);
     }
 
     this.tempo = div('dg-tempo');
@@ -136,7 +138,7 @@ export class Hud {
     ann.append(this.announceEl);
 
     const cta = div('dg-cta');
-    const messages = ['Yorum yaz, <b>halaya katıl</b> 💃', 'Beğen, <b>davul hızlansın</b> 🥁', '<b>Parfüm</b> at, gelin sen ol 👰'];
+    const messages = ['Yorum yaz, <b>halaya katıl</b> 💃', 'Beğen, <b>davul hızlansın</b> 🥁', '<b>Gül ×10</b> gelin · <b>Gül ×20</b> damat'];
     let i = 0;
     cta.innerHTML = `<span>${messages[0]}</span>`;
     this.ctaTimer = window.setInterval(() => {
@@ -155,7 +157,7 @@ export class Hud {
   setRole(role: 'gelin' | 'damat', viewer: Viewer | null, heldSeconds: number, swapped = false): void {
     const c = this.cards[role];
     c.name.textContent = viewer ? viewer.name : role === 'gelin' ? 'Gelin kim olacak?' : 'Damat kim olacak?';
-    c.time.textContent = viewer ? `${mmss(heldSeconds)} tahtta` : role === 'gelin' ? 'Parfüm at, gelin ol' : 'Donut at, damat ol';
+    c.time.textContent = viewer ? `${mmss(heldSeconds)} tahtta` : role === 'gelin' ? 'Gül ×10, gelin ol' : 'Gül ×20, damat ol';
     if (swapped) {
       c.el.classList.remove('swap');
       void c.el.offsetWidth;
@@ -195,11 +197,11 @@ export class Hud {
   }
 
   flash(giftId: string): void {
-    const cell = this.menuCells.get(giftId);
-    if (!cell) return;
-    cell.classList.remove('flash');
-    void cell.offsetWidth;
-    cell.classList.add('flash');
+    for (const cell of this.menuCells.get(giftId) ?? []) {
+      cell.classList.remove('flash');
+      void cell.offsetWidth;
+      cell.classList.add('flash');
+    }
   }
 
   dispose(): void {
