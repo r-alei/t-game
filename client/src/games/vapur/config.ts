@@ -1,5 +1,5 @@
 /**
- * Gece Vapuru ayarları. Hediye → an eşlemesi tek yerde durur;
+ * Boğaz Vapuru ayarları. Hediye → an eşlemesi tek yerde durur;
  * yeni an eklemek ya da hediyeyi değiştirmek için yalnız bu dosya değişir.
  */
 import type { GiftTier } from '../../../../shared/gifts.ts';

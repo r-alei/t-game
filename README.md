@@ -2,11 +2,11 @@
 
 TikTok LIVE için three.js ile yazılmış etkileşimli yayın oyunu altyapısı.
 
-İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [docs/BOGAZ-VAPURU.md](docs/BOGAZ-VAPURU.md).
+İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [client/src/games/vapur/README.md](client/src/games/vapur/README.md).
 
 ## Yayında kullanım
 
-1. `BASLAT.cmd` dosyasına çift tıkla. Şunları açar:
+1. `BASLAT.cmd` dosyasına çift tıkla ve listeden oyunu seç (ya da doğrudan oyunun klasöründeki `BASLAT.cmd`'ye tıkla, ör. `client/src/games/vapur/BASLAT.cmd`). Şunları açar:
    - "SUNUCU" penceresi: yayın boyunca açık kalmalı.
    - Çerçevesiz dikey oyun penceresi (1080p ekranda 576×1024, tam 9:16). Sürükleyerek taşınır, **Esc** kapatır.
    - Tarayıcıda kontrol paneli.
@@ -64,17 +64,24 @@ client/
     games/
       Game.ts      Her oyunun uyduğu arayüz
       registry.ts  Oyun listesi (?game=ad ile seçilir)
-      vapur/       Boğaz Vapuru
+      vapur/       Boğaz Vapuru (kendi README.md ve BASLAT.cmd'si içinde)
       demo/        Altyapı testi için örnek oyun (?game=demo)
 tests/             Vitest testleri
-docs/              Fikir ve tasarım belgeleri
+docs/              Oyunlardan bağımsız fikir belgeleri (tek oyuna ait belge oyunun klasörüne gider)
 ```
 
 ## Kurallar
 
 - Oyun kodu TikTok kütüphanesini hiç görmez, yalnız `LiveEvent` alır. Kütüphane değişirse yalnız `server/normalize.ts` ve `server/sources/tiktok.ts` değişir.
 - Oyun mantığı tek yerde, ekranda (`client/src/games/<oyun>/`) çalışır. Sunucu yalnız olay taşır.
-- Yeni oyun: `games/<ad>/` klasörü + `Game` arayüzü + `registry.ts`'e bir satır.
+- **Her oyun kendi klasöründe:** `client/src/games/<ad>/`. O oyuna ait her şey oradadır:
+  - kod (`<Ad>Game.ts`, `config.ts`, …)
+  - `README.md`: kurallar, hediye menüsü, bilinen eksikler
+  - `BASLAT.cmd`: yalnız bu oyunu açar (içeriği: `call "%~dp0..\..\..\..\BASLAT.cmd" <ad>`)
+  - oyuna özel görsel ve sesler `assets/` altında, koddan `import` ile kullanılır
+- Oyunlar arası ortak olanlar klasör dışında kalır: `engine/` (sahne, kamera, yazı), `shared/` (olaylar, hediye kademeleri), `client/public/gifts/` (TikTok hediye simgeleri).
+- Bir oyun başka bir oyunun klasöründen dosya almaz. İki oyun aynı şeye ihtiyaç duyarsa o parça `engine/`'e taşınır.
+- Yeni oyun: `games/<ad>/` klasörü + `Game` arayüzü + `registry.ts`'e bir satır + `README.md` ve `BASLAT.cmd`. Kökteki `BASLAT.cmd` klasörleri kendisi listeler.
 - Önemli her şey `layout.ts` içindeki `SAFE` alanına konur.
 - Kullanıcı adları ekrana yalnız `textContent` veya canvas ile yazılır, asla `innerHTML` ile yazılmaz.
 - Sürüm kopyası klasörü (`dist/v2.3.0` gibi) açılmaz; geçmiş git'te tutulur.

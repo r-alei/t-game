@@ -1,5 +1,7 @@
 # Boğaz Vapuru
 
+Açmak için bu klasördeki `BASLAT.cmd`'ye çift tıkla (ya da kökteki `BASLAT.cmd` → vapur). Geliştirmede adres: `http://127.0.0.1:4300/?game=vapur`.
+
 İstanbul Boğazı'nda bitmeyen bir sabah seferi. Yorum yazan izleyici vapura biner. Her hediye, hediyeyi atan kişiye adıyla birlikte, kameranın gittiği bir an verir.
 
 ## Neden böyle kuruldu
@@ -83,6 +85,8 @@ Bölgeleri görmek için adrese `?guides=1` ekle.
 
 ```
 client/src/games/vapur/
+  README.md          Bu belge
+  BASLAT.cmd         Yalnız bu oyunu açar (çift tıkla)
   VapurGame.ts       Olay → yolcu + an + kamera çekimi
   config.ts          Hediye menüsü, vapur ölçüleri, süreler
   passengers.ts      Yolcu figürü, koltuk dağıtımı, roller
