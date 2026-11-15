@@ -59,12 +59,13 @@ client/
   index.html       Yayın ekranı
   panel.html       Kontrol paneli
   src/
-    engine/        Oyundan bağımsız parçalar: sahne, döngü, isim etiketi, duyuru, güvenli alan
+    engine/        Oyundan bağımsız parçalar: sahne, döngü, kamera, isim etiketi, duyuru, konfeti, güvenli alan
     net/live.ts    WebSocket istemcisi
     games/
       Game.ts      Her oyunun uyduğu arayüz
       registry.ts  Oyun listesi (?game=ad ile seçilir)
       vapur/       Boğaz Vapuru (kendi README.md ve BASLAT.cmd'si içinde)
+      dugun/       Düğün Var! (?game=dugun)
       demo/        Altyapı testi için örnek oyun (?game=demo)
 tests/             Vitest testleri
 docs/              Oyunlardan bağımsız fikir belgeleri (tek oyuna ait belge oyunun klasörüne gider)

@@ -17,7 +17,8 @@ import { Environment } from './world/environment.ts';
 import { Ferry } from './world/ferry.ts';
 import { Scenery, type Pier } from './world/scenery.ts';
 import { Passenger, Passengers } from './passengers.ts';
-import { Confetti, Floaters, Gulls, Steam, makeMic, makeSimit, makeTea } from './effects.ts';
+import { Gulls, Steam, makeMic, makeSimit, makeTea } from './effects.ts';
+import { Confetti, Floaters } from '../../engine/particles.ts';
 import { Hud } from './hud.ts';
 import { PIERS, SHIP, TIMING, momentFor, type MomentId } from './config.ts';
 
