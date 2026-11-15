@@ -16,6 +16,31 @@ export type NormalizeResult =
 
 const MAX_NAME = 20;
 
+/**
+ * Seri hediyelerin (gül vb.) o ana kadar sayılmış adedi. TikTok seri sürerken artan toplamla
+ * ara güncellemeler gönderir; her güncellemede yalnız yeni eklenen adet olay olur, böylece
+ * her gül ekranda o saniye karşılık bulur. Seri bitince kayıt silinir.
+ */
+export class GiftStreaks {
+  private readonly counted = new Map<string, number>();
+  constructor(private readonly limit = 5_000) {}
+
+  /** Bu güncellemeyle eklenen adet (0 ise yeni bir şey yok) */
+  delta(key: string, total: number, end: boolean): number {
+    const before = this.counted.get(key) ?? 0;
+    if (end) this.counted.delete(key);
+    else {
+      this.counted.delete(key); // ekleme sırası: en son güncellenen sona
+      this.counted.set(key, Math.max(before, total));
+      if (this.counted.size > this.limit) {
+        const oldest = this.counted.keys().next().value;
+        if (oldest !== undefined) this.counted.delete(oldest);
+      }
+    }
+    return Math.max(0, total - before);
+  }
+}
+
 function positiveInt(v: unknown): number | null {
   const n = Number(v);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
@@ -61,7 +86,11 @@ function messageId(type: LiveEventType, raw: Raw, viewer: Viewer): string {
   return `${type}:${randomUUID()}`;
 }
 
-export function normalize(type: LiveEventType, raw: Raw, now = Date.now()): NormalizeResult {
+/**
+ * `streaks` verilirse seri hediyeler adet adet (artış olarak) gelir; verilmezse eski davranış:
+ * yalnız seri sonundaki toplam sayılır.
+ */
+export function normalize(type: LiveEventType, raw: Raw, now = Date.now(), streaks?: GiftStreaks): NormalizeResult {
   const viewer = viewerOf(raw);
   if (!viewer) return { ok: false, reason: 'invalid', detail: 'kullanıcı kimliği yok' };
   const base = { at: now, viewer };
@@ -79,17 +108,26 @@ export function normalize(type: LiveEventType, raw: Raw, now = Date.now()): Norm
     case 'gift': {
       const giftId = String(raw.giftId ?? raw.giftDetails?.id ?? '');
       const details = raw.giftDetails ?? raw.gift ?? {};
-      // Tür 1 = seri hediye (gül vb.). Seri sürerken ara güncellemeler gelir; yalnız sonuncuyu say.
+      // Tür 1 = seri hediye (gül vb.). Seri sürerken artan toplamla ara güncellemeler gelir.
       const giftType = Number(details.giftType ?? raw.giftType);
-      if (giftType === 1 && !raw.repeatEnd) return { ok: false, reason: 'skip' };
+      const streak = giftType === 1;
+      if (streak && !raw.repeatEnd && !streaks) return { ok: false, reason: 'skip' };
 
       const known = findGift(giftId);
       const unitValue = positiveInt(details.diamondCount ?? raw.diamondCount) ?? known?.diamonds ?? null;
       if (!unitValue) return { ok: false, reason: 'invalid', detail: `hediye ${giftId} değeri bilinmiyor` };
-      const count = positiveInt(raw.repeatCount) ?? 1;
+      const total = positiveInt(raw.repeatCount) ?? 1;
 
       const group = String(raw.groupId ?? '');
-      const stable = group && group !== '0' ? `group:${group}` : messageId('gift', raw, viewer);
+      let stable = group && group !== '0' ? `group:${group}` : messageId('gift', raw, viewer);
+      let count = total;
+      if (streak && streaks) {
+        const key = group && group !== '0' ? `${viewer.id}:${giftId}:${group}` : `${viewer.id}:${giftId}`;
+        count = streaks.delta(key, total, Boolean(raw.repeatEnd));
+        if (count === 0) return { ok: false, reason: 'skip' };
+        // Her artış ayrı olay: kimlik o ana kadarki toplamı içerir (tekrar gelirse dedupe eler)
+        stable = `${stable}:${total}`;
+      }
       return {
         ok: true,
         event: {

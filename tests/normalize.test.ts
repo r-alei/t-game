@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanName, normalize } from '../server/normalize.ts';
+import { GiftStreaks, cleanName, normalize } from '../server/normalize.ts';
 import { Dedupe } from '../server/dedupe.ts';
 
 const user = { userId: '42', nickname: 'Ayşe', profilePicture: { url: ['https://p.example/a.jpg'] } };
@@ -20,6 +20,18 @@ describe('normalize', () => {
     expect(normalize('gift', { ...base, repeatCount: 2, repeatEnd: false })).toMatchObject({ ok: false, reason: 'skip' });
     const end = normalize('gift', { ...base, repeatCount: 3, repeatEnd: true });
     expect(end).toMatchObject({ ok: true, event: { count: 3, value: 3, id: 'gift:42:5655:group:7' } });
+  });
+
+  it('seri hediyeyi adet adet, anında verir (GiftStreaks ile)', () => {
+    const streaks = new GiftStreaks();
+    const base = { user, giftId: '5655', groupId: '7', giftDetails: { giftType: 1, diamondCount: 1 } };
+    const step = (repeatCount: number, repeatEnd = false) => normalize('gift', { ...base, repeatCount, repeatEnd }, 0, streaks);
+    expect(step(1)).toMatchObject({ ok: true, event: { count: 1, id: 'gift:42:5655:group:7:1' } });
+    expect(step(1)).toMatchObject({ ok: false, reason: 'skip' }); // aynı güncelleme tekrar
+    expect(step(4)).toMatchObject({ ok: true, event: { count: 3, value: 3 } }); // atlanan güncellemeler toplanır
+    expect(step(4, true)).toMatchObject({ ok: false, reason: 'skip' }); // seri sonu, yeni adet yok
+    // Aynı grup yeniden başlarsa baştan sayılır
+    expect(step(2, true)).toMatchObject({ ok: true, event: { count: 2 } });
   });
 
   it('değer yoksa bilinen hediye tablosuna düşer, bilinmiyorsa reddeder', () => {

@@ -3,7 +3,7 @@
  * oyun kuralı içermez. Bağlantı koparsa birkaç kez yeniden dener.
  */
 import type { ConnectionStatus, LiveEvent, LiveEventType } from '../../shared/events.ts';
-import { normalize } from '../normalize.ts';
+import { GiftStreaks, normalize } from '../normalize.ts';
 
 type Handlers = {
   onEvent: (e: LiveEvent) => void;
@@ -75,9 +75,11 @@ export class TikTokSource {
     });
     this.conn = conn;
 
+    // Seri hediyeler adet adet gelsin: her gül ekranda o saniye görünür
+    const streaks = new GiftStreaks();
     const forward = (type: LiveEventType) => (raw: unknown) => {
       if (gen !== this.generation) return;
-      const result = normalize(type, raw);
+      const result = normalize(type, raw, Date.now(), streaks);
       if (result.ok) this.handlers.onEvent(result.event);
       else if (result.reason === 'invalid') console.warn(`[tiktok] ${type} atlandı: ${result.detail}`);
     };
