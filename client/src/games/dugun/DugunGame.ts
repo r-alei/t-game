@@ -16,11 +16,25 @@ import { Confetti, Floaters } from '../../engine/particles.ts';
 import { Dancer, Ring, type Beat } from './dancers.ts';
 import { SPOTS, WeddingCar, World } from './world.ts';
 import { Hud } from './hud.ts';
+import { SCREEN } from '../../engine/layout.ts';
 import { RING, TEMPO, TIMING, momentFor, type MomentId } from './config.ts';
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const pose = (pos: THREE.Vector3, look: THREE.Vector3): Pose => ({ pos, look });
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
+/** Bakış yönü + uzaklıktan kamera konumu (yaw 0 = önden, +z tarafından) */
+const orbit = (look: THREE.Vector3, yaw: number, pitch: number, dist: number): Pose => ({
+  pos: look.clone().add(v(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(dist)),
+  look,
+});
+
+/**
+ * Kameranın baktığı nokta ekranın ortasına değil, oyunun açık kalan bölgesinin ortasına düşer:
+ * üstte başlık/kartlar/tempo (~y 480'e kadar), altta duyuru + çağrı ve TikTok yorumları,
+ * sağda TikTok düğmeleri. Bakış noktası 1080×1920 karede bu noktaya kaydırılır.
+ */
+const FRAME_CENTER = { x: 470, y: 800 };
 
 const GELIN_SPOT = v(-0.8, 0, 0.6);
 const DAMAT_SPOT = v(0.8, 0, 0.6);
@@ -83,8 +97,9 @@ export class DugunGame implements Game {
   start(ctx: GameContext): void {
     this.ctx = ctx;
     const { scene, camera } = ctx.stage;
-    camera.fov = 42;
+    camera.fov = 44;
     camera.far = 700;
+    camera.setViewOffset(SCREEN.width, SCREEN.height, SCREEN.width / 2 - FRAME_CENTER.x, SCREEN.height / 2 - FRAME_CENTER.y, SCREEN.width, SCREEN.height);
     camera.updateProjectionMatrix();
     ctx.stage.renderer.toneMappingExposure = 1.0;
 
@@ -497,16 +512,18 @@ export class DugunGame implements Game {
     const idle = (name: string, duration: number, f: (t: number) => Pose): Shot => ({ name, priority: 0, duration, pose: f });
     const R = () => this.ring.radius;
     return [
-      // Dikey ekranda yatay açı dar (~25°): halkanın tamamı için uzaktan bakılır
-      idle('ön geniş', 9, (t) => pose(v(Math.sin(t * 0.08) * 4, 8 + R() * 0.5, R() * 2 + 11), v(0, -0.6, -0.5))),
-      idle('kuşbakışı', 8, (t) => pose(v(Math.sin(t * 0.1) * 2, 16 + R() * 2.2, 6 + R() * 0.6), v(0, 0, -0.5))),
+      // Dikey ekranda yatay açı dar (~25°). Zincir çemberin bir yayıdır ve döner: geniş çekimler
+      // zincirin o anki yerine değil bütün çembere (ve arkasındaki çalgıcılara) göre kurulur.
+      idle('ön geniş', 9, (t) => orbit(v(0.6, 0.8, -5), Math.sin(t * 0.08) * 0.1, 0.3, 23 + R() * 2.5)),
+      idle('kuşbakışı', 8, (t) => orbit(v(0.3, 0, 1.4), Math.sin(t * 0.1) * 0.08, 0.95, 21 + R() * 2.3)),
       idle('halka içi', 9, (t) => {
         const a = 0.6 - t * 0.09;
-        const r = R() + 6;
-        return pose(v(Math.sin(a) * r, 3.2, Math.cos(a) * r), v(0, 1.4, 0));
+        const r = R() + 9;
+        return pose(v(Math.sin(a) * r, 5.5, Math.cos(a) * r), v(0, 0.9, 0));
       }),
-      idle('gelin damat', 7, (t) => pose(v(-1 + t * 0.25, 5.5, R() + 6), v(0, 1.2, 0.6))),
-      idle('çalgıcılar', 7, (t) => pose(SPOTS.musicians.clone().add(v(-5 + t * 0.3, 3, 8)), SPOTS.musicians.clone().add(v(0, 1.4, 0)))),
+      idle('gelin damat', 7, (t) => pose(v(-1 + t * 0.25, 5.5, R() + 7), v(0, 1.2, 0.6))),
+      // Kamera halkanın arka kenarı ile sahne arasında: halkanın ortasına (gelin/damadın arkasına) düşmesin
+      idle('çalgıcılar', 7, (t) => pose(v(SPOTS.musicians.x - 2 + t * 0.3, 3.8, Math.min(-R() - 0.6, SPOTS.musicians.z + 9)), SPOTS.musicians.clone().add(v(0, 1.5, 0)))),
     ];
   }
 
@@ -526,31 +543,35 @@ export class DugunGame implements Game {
         dir.applyAxisAngle(v(0, 1, 0), -0.2 + t * 0.08);
         const dist = inner ? this.ring.radius + 7 : 9;
         const lift = inner ? 5.5 : 3;
-        return pose(head.clone().addScaledVector(dir, dist).add(v(0, lift, 0)), head.clone().add(v(0, -0.4, 0)));
+        // Bakış başın biraz üstüne: baş kadrajın ortasının altında kalır, üstündeki isim ve
+        // konuşma balonu üst yazıların (başlık, kartlar) arkasına girmez
+        return pose(head.clone().addScaledVector(dir, dist).add(v(0, lift, 0)), head.clone().add(v(0, 0.25, 0)));
       },
     };
   }
 
   private coupleShot(priority: number, duration: number): Shot {
-    return { name: 'takı', priority, duration, pose: (t) => pose(v(1.5 - t * 0.3, 5, this.ring.radius + 5), v(0, 1.1, 0.6)) };
+    return { name: 'takı', priority, duration, pose: (t) => pose(v(1.5 - t * 0.3, 6.5, this.ring.radius + 8), v(0, 1.2, 0.6)) };
   }
 
   private throwShot(d: Dancer, priority: number, duration: number): Shot {
-    return { name: 'havaya', priority, duration, cut: true, focus: d, pose: () => {
-      const head = d.headWorld();
-      return pose(v(0, 3, 16), v(head.x * 0.5, Math.max(2, head.y * 0.75), 0));
-    } };
+    // Sabit geniş kadraj: hızlı yükselen damadı takip eden kamera geride kalıp onu üst yazıların
+    // arkasına kaçırıyordu. Yerdeki halaycılardan atışın tepesine kadar hepsi kadrajda.
+    return { name: 'havaya', priority, duration, cut: true, focus: d, pose: (t) =>
+      pose(v(0, 6, this.ring.radius + 32 - t * 0.6), v(0, 6, 0)) };
   }
 
   private topShot(priority: number, duration: number): Shot {
-    return { name: 'halay koptu', priority, duration, cut: true, pose: (t) => pose(v(0, 14 + this.ring.radius * 1.6 - t * 0.6, 10 + this.ring.radius), v(0, 0, 0)) };
+    return { name: 'halay koptu', priority, duration, cut: true, pose: (t) => orbit(v(0.3, 0, 1.4), 0, 0.95, 20 + this.ring.radius * 2.3 - t * 0.5) };
   }
 
   private carShot(priority: number, duration: number): Shot {
     return { name: 'gelin arabası', priority, duration, pose: (t) => {
       const car = this.car.group.position;
-      // Halkanın üstünden: öndeki halaycılar arabayı kapatmasın
-      return pose(v(car.x * 0.4 + 2, 10 + this.ring.radius * 0.6, SPOTS.car.z + this.ring.radius + 14 - t * 0.2), v(car.x * 0.7, 0.6, SPOTS.car.z));
+      // Halkanın üstünden ama süs bayraklarının altından: öndeki halaycılar da, çapraz bayrak
+      // ipleri de arabayı kapatmasın. Araba sağa çıkarken kamera çok uzağa gitmesin.
+      const x = Math.max(-12, Math.min(8, car.x)) * 0.6;
+      return orbit(v(x, 1, SPOTS.car.z + 1), 0, 0.27, 24 + this.ring.radius * 1.8 - t * 0.2);
     } };
   }
 
@@ -576,6 +597,9 @@ export class DugunGame implements Game {
     for (const r of ['gelin', 'damat'] as const) {
       const d = this.thrones[r].dancer;
       if (!d.busy) d.facing = 0;
+      // Gelin ile damat el ele (dancers.ts iki taraf da birbirini yazınca eli tutar)
+      d.links[0] = this.thrones[r === 'gelin' ? 'damat' : 'gelin'].dancer;
+      d.links[1] = null;
     }
 
     // Damat yere indi mi? Bazen tutamazlar
@@ -642,6 +666,7 @@ export class DugunGame implements Game {
 
   dispose(): void {
     this.hud.dispose();
+    this.ctx.stage.camera.clearViewOffset();
     this.ctx.stage.clear();
   }
 }

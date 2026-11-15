@@ -65,6 +65,18 @@ export const TIMING = {
   kaynanaStopSeconds: 4,
 } as const;
 
+/** Figür ölçüleri (dancers.ts) */
+export const BODY = {
+  /** Omuz ekleminin gövde ortasından uzaklığı ve yüksekliği */
+  shoulderX: 0.31,
+  shoulderY: 1.45,
+  /** Üst kol ve ön kol boyu: el, komşunun eline bu erimde uzanır */
+  upperArm: 0.33,
+  foreArm: 0.31,
+  /** Bacak ucunun y'si: meydan döşemesi y=0.03'te, ayak onun hemen üstünde */
+  footLift: 0.035,
+} as const;
+
 /** Halay halkası */
 export const RING = {
   /** Halkadaki en fazla kişi; fazlası olunca en eski sessiz halaycı çıkar */

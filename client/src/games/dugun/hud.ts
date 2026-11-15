@@ -6,13 +6,14 @@
  * Kullanıcı adları yalnız textContent ile yazılır.
  */
 import type { Viewer } from '../../../../shared/events.ts';
-import { SAFE } from '../../engine/layout.ts';
+import { SAFE, SCREEN } from '../../engine/layout.ts';
 import { MENU, TEMPO } from './config.ts';
 
-const TOP = 196;
+/** TikTok üst barının (0–200) hemen altı */
+const TOP = 206;
 
 const css = /* css */ `
-.dg-head { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; top:${TOP}px; display:flex; flex-direction:column; gap:10px; }
+.dg-head { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; top:${TOP}px; display:flex; flex-direction:column; gap:8px; }
 .dg-row1 { display:flex; align-items:center; justify-content:space-between; }
 .dg-title { font:900 46px/1 'Segoe UI',sans-serif; letter-spacing:1px; color:#fff;
   text-shadow:0 3px 0 #9a1020, 0 5px 14px rgba(0,0,0,.45); }
@@ -26,11 +27,11 @@ const css = /* css */ `
 .dg-card .tm { font:700 24px/1.1 'Segoe UI',sans-serif; color:#a3122a; }
 .dg-card.swap { animation: dg-pop .7s cubic-bezier(.2,1.6,.4,1); }
 @keyframes dg-pop { 0% { transform:scale(1.25); background:#ffe08a } 100% { transform:scale(1) } }
-.dg-menu { display:grid; grid-template-columns:repeat(${MENU.length}, 1fr); gap:6px; padding:8px 6px;
+.dg-menu { display:grid; grid-template-columns:repeat(${MENU.length}, minmax(0, 1fr)); gap:6px; padding:6px 6px;
   background:rgba(120,10,30,.5); border-radius:22px; }
 .dg-menu div { display:flex; flex-direction:column; align-items:center; gap:4px;
-  font:900 24px/1 'Segoe UI',sans-serif; color:#fff; text-shadow:0 2px 3px #000; white-space:nowrap; }
-.dg-menu img { width:58px; height:58px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
+  font:900 22px/1 'Segoe UI',sans-serif; color:#fff; text-shadow:0 2px 3px #000; white-space:nowrap; min-width:0; }
+.dg-menu img { width:48px; height:48px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
 .dg-menu .flash { animation: dg-flash .9s ease-out; }
 @keyframes dg-flash { 0% { transform:scale(1.35); color:#ffd25e } 100% { transform:scale(1) } }
 .dg-tempo { position:relative; height:30px; border-radius:16px; background:rgba(0,0,0,.45); overflow:hidden; border:2px solid rgba(255,255,255,.7); }
@@ -46,12 +47,15 @@ const css = /* css */ `
 @keyframes dg-tick { 0% { transform:scale(1.5); opacity:1 } 80% { opacity:.9 } 100% { transform:scale(1); opacity:0 } }
 .dg-count-label { position:absolute; left:0; right:150px; top:560px; text-align:center;
   font:900 44px/1 'Segoe UI',sans-serif; color:#fff; text-shadow:0 3px 0 #9a1020, 0 4px 12px rgba(0,0,0,.6); display:none; }
-.dg-announce { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; top:${SAFE.y + SAFE.h - 300}px; text-align:center; }
+/* Duyuru, motorun alttaki ad bandının (SAFE alt − 215) üstünde biter; uzun ad sığmazsa yukarı doğru
+   ikinci satıra iner, kesilmez */
+.dg-announce { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; bottom:${SCREEN.height - (SAFE.y + SAFE.h - 228)}px; text-align:center; pointer-events:none; }
 .dg-announce span { display:inline-block; padding:12px 26px; border-radius:30px; background:rgba(255,248,220,.95);
-  font:900 40px/1.1 'Segoe UI',sans-serif; color:#8a5a00; box-shadow:0 6px 18px rgba(0,0,0,.3); opacity:0; }
+  font:900 38px/1.1 'Segoe UI',sans-serif; color:#8a5a00; box-shadow:0 6px 18px rgba(0,0,0,.3); opacity:0;
+  max-width:100%; box-sizing:border-box; overflow-wrap:anywhere; }
 .dg-announce span.show { animation: dg-ann 2.2s ease-out forwards; }
 @keyframes dg-ann { 0% { transform:scale(.6); opacity:0 } 12% { transform:scale(1.08); opacity:1 } 20% { transform:scale(1) } 85% { opacity:1 } 100% { opacity:0 } }
-.dg-cta { position:absolute; left:0; right:150px; top:${SAFE.y + SAFE.h - 70}px; text-align:center; }
+.dg-cta { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; top:${SAFE.y + SAFE.h - 66}px; text-align:center; }
 .dg-cta span { display:inline-block; padding:12px 30px; border-radius:40px; background:rgba(120,10,30,.78);
   border:2px solid rgba(255,210,94,.85); font:800 32px 'Segoe UI',sans-serif; color:#fff; }
 .dg-cta b { color:#ffd25e; }

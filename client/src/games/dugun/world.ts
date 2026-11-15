@@ -9,8 +9,8 @@ import { createTextSprite, disposeSprite } from '../../engine/textSprite.ts';
 const mat = (color: string, roughness = 0.85) => new THREE.MeshStandardMaterial({ color, roughness });
 
 export const SPOTS = {
-  /** Çalgıcıların durduğu sahne (sağ arka) */
-  musicians: new THREE.Vector3(7.5, 0.5, -12.5),
+  /** Çalgıcıların durduğu sahne (halkanın hemen arkası, biraz sağda: dikey kadraja sığsın) */
+  musicians: new THREE.Vector3(4.2, 0.5, -13),
   /** Gelin arabasının durduğu yer (halkanın arkası) */
   car: new THREE.Vector3(-3, 0, -9.2),
 };
@@ -44,9 +44,10 @@ export class World {
     this.sun = new THREE.DirectionalLight('#fff0d8', 2.4);
     this.sun.position.set(-18, 26, 22);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(1024, 1024);
+    // Gölge kutusu tüm meydanı (yan evler, masalar, sahne) kapsar; kenarda kesik gölge çizgisi olmasın
+    this.sun.shadow.mapSize.set(2048, 2048);
     const c = this.sun.shadow.camera;
-    c.left = -20; c.right = 20; c.top = 20; c.bottom = -20; c.near = 1; c.far = 80;
+    c.left = -32; c.right = 32; c.top = 32; c.bottom = -32; c.near = 1; c.far = 100;
     this.sun.shadow.normalBias = 0.04;
     this.group.add(this.sun, this.sun.target);
 
@@ -84,7 +85,9 @@ export class World {
     tex.repeat.set(5, 5);
     const floor = new THREE.Mesh(new THREE.CircleGeometry(10.5, 48), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = 0.02;
+    floor.position.y = 0.03;
+    (floor.material as THREE.MeshStandardMaterial).polygonOffset = true;
+    (floor.material as THREE.MeshStandardMaterial).polygonOffsetFactor = -2;
     floor.receiveShadow = true;
     this.group.add(floor);
   }
@@ -110,7 +113,7 @@ export class World {
       for (let fy = 2.2; fy < h - 1; fy += 2.6) {
         for (let fx = -w / 2 + 1.4; fx < w / 2 - 0.8; fx += 2) {
           const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), windowMat);
-          win.position.set(fx + 0.3, fy, d / 2 + 0.01);
+          win.position.set(fx + 0.3, fy, d / 2 + 0.03);
           house.add(win);
         }
       }
@@ -120,13 +123,17 @@ export class World {
     };
     let i = 0;
     for (let x = -30; x <= 30; x += 8.5) place(x, -30 - (i % 2) * 2, 0, i++);
-    for (let z = -20; z <= 6; z += 9) {
+    // Yan sıralar: z≈-9'da sokak ağzı boş kalır, gelin arabası evlerin içinden geçmesin
+    for (const z of [-22, -0.5, 8.5]) {
       place(-27, z, Math.PI / 2, i++);
       place(27, z, -Math.PI / 2, i++);
     }
-    // Arkadaki evin cephesine "HOŞ GELDİNİZ" pankartı
-    const sign = createTextSprite('HOŞ GELDİNİZ', { color: '#b3141b', background: '#fff8ea', font: '900 90px Segoe UI, sans-serif', height: 2.2, padding: 30 });
-    sign.position.set(-4, 4.4, -26.5);
+    // Çalgıcı sahnesinin arka bezine asılı "HOŞ GELDİNİZ" pankartı. Sprite değil düz levha:
+    // kameraya dönmez, uzaktaki evin tepesinde (başlığın arkasında) kalmaz.
+    const sprite = createTextSprite('HOŞ GELDİNİZ', { color: '#b3141b', background: '#fff8ea', font: '900 90px Segoe UI, sans-serif', height: 0.8, padding: 26 });
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(sprite.scale.x, sprite.scale.y), new THREE.MeshBasicMaterial({ map: sprite.material.map, transparent: true }));
+    sprite.material.dispose();
+    sign.position.set(SPOTS.musicians.x, 3.25, SPOTS.musicians.z - 1.95);
     this.group.add(sign);
   }
 
@@ -174,6 +181,15 @@ export class World {
     deck.castShadow = deck.receiveShadow = true;
     const back = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.6), new THREE.MeshStandardMaterial({ color: '#c8202a', side: THREE.DoubleSide }));
     back.position.set(SPOTS.musicians.x, 2.3, SPOTS.musicians.z - 2);
+    back.receiveShadow = true;
+    // Bez havada durmasın: iki direğe gerili
+    const poleMat = mat('#6b4a2e');
+    for (const sx of [-3.05, 3.05]) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 4.2, 6), poleMat);
+      p.position.set(SPOTS.musicians.x + sx, 2.1, SPOTS.musicians.z - 2);
+      p.castShadow = true;
+      this.group.add(p);
+    }
     this.group.add(deck, back);
   }
 
@@ -194,13 +210,22 @@ export class World {
     const flagGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([-0.28, 0, 0, 0.28, 0, 0, 0, -0.55, 0], 3));
     flagGeo.computeVertexNormals();
     const bulbMat = new THREE.MeshBasicMaterial({ color: '#fff2b8' });
+    const ropeMat = mat('#f4efe4', 0.9);
     const line = (a: THREE.Vector3, b: THREE.Vector3, sag: number) => {
       const g = new THREE.Group();
+      const at = (k: number) => {
+        const p = a.clone().lerp(b, k);
+        p.y = 7.6 - Math.sin(k * Math.PI) * sag;
+        return p;
+      };
+      // Bayrakların asılı olduğu ip: direk tepesinden direk tepesine
+      const pts: THREE.Vector3[] = [];
+      for (let k = 0; k <= 16; k++) pts.push(at(k / 16));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.025, 4), ropeMat));
       const n = Math.round(a.distanceTo(b) / 0.8);
       for (let i = 1; i < n; i++) {
         const k = i / n;
-        const p = a.clone().lerp(b, k);
-        p.y = 7.6 - Math.sin(k * Math.PI) * sag;
+        const p = at(k);
         const f = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({ color: colors[i % colors.length], side: THREE.DoubleSide }));
         f.position.copy(p);
         f.lookAt(p.x + (b.z - a.z), p.y, p.z - (b.x - a.x));
@@ -208,7 +233,8 @@ export class World {
         g.add(f);
         if (i % 3 === 0) {
           const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), bulbMat);
-          bulb.position.copy(p).add(new THREE.Vector3(0, 0.1, 0));
+          // Ampul iki bayrağın arasında, ipin üstünde
+          bulb.position.copy(at((i + 0.5) / n)).add(new THREE.Vector3(0, -0.05, 0));
           g.add(bulb);
         }
       }
