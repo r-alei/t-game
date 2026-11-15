@@ -9,6 +9,10 @@ import type { Viewer } from '../../../../shared/events.ts';
 import { colorFor, createNameTag } from '../../engine/nameTag.ts';
 import { createTextSprite, disposeSprite } from '../../engine/textSprite.ts';
 import { RING, TIMING } from './config.ts';
+import { CharacterModel, type Pose } from './model.ts';
+
+/** ?model=all: herkes 3B gelin modeliyle (performans denemesi) */
+const MODEL_ALL = new URLSearchParams(location.search).get('model') === 'all';
 
 export type Outfit = 'guest' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci';
 
@@ -58,6 +62,8 @@ export class Dancer {
   private bubble: THREE.Sprite | null = null;
   private bubbleUntil = 0;
   private motion: Motion = { kind: 'idle' };
+  /** 3B model (varsa basit gövde gizlenir) */
+  private model: CharacterModel | null = null;
   private waveUntil = 0;
   private hopUntil = 0;
   outfit: Outfit = 'guest';
@@ -171,6 +177,7 @@ export class Dancer {
       return m;
     };
     this.coins.visible = outfit === 'gelin' || outfit === 'damat';
+    this.syncModel();
     switch (outfit) {
       case 'guest':
         this.torsoMat.color.set(this.baseColor);
@@ -210,6 +217,30 @@ export class Dancer {
         z.rotation.x = Math.PI / 2 + 0.5;
         break;
       }
+    }
+  }
+
+  /** Kıyafete göre 3B modeli takar ya da çıkarır. Şimdilik yalnız gelinin modeli var. */
+  private syncModel(): void {
+    const wanted = this.outfit === 'gelin' || MODEL_ALL;
+    if (!wanted && this.model) {
+      this.model.dispose();
+      this.model = null;
+      this.showPrimitives(true);
+    } else if (wanted && !this.model) {
+      const model = new CharacterModel('gelin', 1.25, () => {
+        if (this.model === model) this.showPrimitives(false);
+      });
+      this.model = model;
+      this.body.add(model.root);
+    }
+  }
+
+  /** Basit gövde parçaları (kapsül figür, kıyafet) */
+  private showPrimitives(on: boolean): void {
+    for (const c of this.body.children) {
+      if (c === this.model?.root || c === this.coins) continue;
+      c.visible = on;
     }
   }
 
@@ -415,6 +446,23 @@ export class Dancer {
       this.armL.rotation.set(0, 0, -0.12 - Math.sin(t * 1.1) * 0.03);
     }
 
+    // ---- 3B model: animasyon klibi seçimi
+    if (this.model?.ready) {
+      let pose: Pose = 'idle';
+      const fallen = m.kind === 'fallen' && now >= m.at && now < m.until;
+      if (m.kind === 'thrown' || fallen) pose = 'fall';
+      else if (m.kind === 'walk') pose = 'walk';
+      else if (now < this.waveUntil) pose = 'wave';
+      else if (now < this.hopUntil) pose = 'cheer';
+      else if (dancing) pose = 'halay';
+      this.model.play(pose);
+      if (pose === 'halay') this.model.syncHalay(beat.count);
+      // Düşmeyi ve sekmeyi klip yapar; basit gövdenin dönüş ve sekmesi modele binmesin
+      if (m.kind !== 'thrown') this.body.rotation.z = 0;
+      if (now >= this.hopUntil) this.body.position.y = 0;
+      this.model.update(dt);
+    }
+
     // ---- etiket ve balon
     if (this.tag) {
       const visible = focus ? focus === this : this.pinnedTag || now < this.tagUntil;
@@ -429,6 +477,8 @@ export class Dancer {
   }
 
   dispose(): void {
+    this.model?.dispose();
+    this.model = null;
     this.group.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();
