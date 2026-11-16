@@ -4,6 +4,7 @@
 import type { GiftEvent } from '../../../../shared/events.ts';
 
 export type MomentId =
+  | 'ortaya'   // ortada mendilli solo
   | 'ceyrek'   // çeyrek altın takılır, sunucu adını bağırır
   | 'mendil'   // halaybaşı ol
   | 'gelin'    // gelin ol
@@ -15,28 +16,42 @@ export type MomentId =
 
 export interface MenuItem {
   giftId: string;
+  giftName?: string;
   count: number;
   icon: string;
   label: string;
   moment: MomentId;
 }
 
-/** Ekrandaki hediye menüsü; seride erişilen en yüksek eşik tek rol seçer. */
+/** Yönetim eşlemeleri; seride erişilen en yüksek eşik tek an seçer. Yayında menü çizilmez. */
 export const MENU: readonly MenuItem[] = [
+  { giftId: '5879', count: 1, icon: '/gifts/doughnut.webp', label: 'ORTAYA ÇIK', moment: 'ortaya' },
   { giftId: '5655', count: 1, icon: '/gifts/rose.webp', label: 'HALAYBAŞI', moment: 'mendil' },
-  { giftId: '5655', count: 10, icon: '/gifts/rose.webp', label: 'GELİN OL', moment: 'gelin' },
-  { giftId: '5655', count: 20, icon: '/gifts/rose.webp', label: 'DAMAT OL', moment: 'damat' },
+  { giftId: 'bouquet', giftName: 'bouquet', count: 1, icon: '/gifts/rose.webp', label: 'GELİN OL', moment: 'gelin' },
+  { giftId: '5658', count: 1, icon: '/gifts/perfume.webp', label: 'DAMAT OL', moment: 'damat' },
   { giftId: '6064', count: 5, icon: '/gifts/gg.webp', label: 'DAVULCU OL', moment: 'davulcu' },
   { giftId: '6064', count: 10, icon: '/gifts/gg.webp', label: 'ZURNACI OL', moment: 'zurnaci' },
   { giftId: '5487', count: 10, icon: '/gifts/finger-heart.webp', label: 'KAYNANA OL', moment: 'kaynana' },
   { giftId: '5585', count: 1, icon: '/gifts/confetti.webp', label: 'HAVAYA AT', moment: 'havaya' },
 ];
 
-/** Tamamlanmış hediyenin toplamından ulaşılan en yüksek eşik seçilir. */
+/** Tek eşleme noktası; Buket için İngilizce ve Türkçe ad kabul edilir. */
+export function giftMatches(
+  rule: { giftId: string; giftName?: string },
+  event: { giftId: string; giftName?: string },
+): boolean {
+  if (rule.giftId === event.giftId) return true;
+  if (!rule.giftName) return false;
+  const name = event.giftName?.toLowerCase() ?? '';
+  const expected = rule.giftName.toLowerCase();
+  return name.includes(expected) || (expected === 'bouquet' && name.includes('buket'));
+}
+
+/** Ulaşılan en yüksek yeni eşik seçilir. */
 export function momentFor(event: GiftEvent, menu: readonly MenuItem[] = MENU): MomentId | null {
   const total = event.streakTotal ?? event.count;
   const previous = total - event.count;
-  return menu.filter((m) => m.giftId === event.giftId && m.count > previous && m.count <= total)
+  return menu.filter((m) => giftMatches(m, event) && m.count > previous && m.count <= total)
     .sort((a, b) => b.count - a.count)[0]?.moment ?? null;
 }
 

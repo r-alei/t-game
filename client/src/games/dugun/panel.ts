@@ -52,6 +52,11 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
         <p class="muted compact">Ses düğmesi mevcut efektleri açar; davul-zurna kaydı eklemez.</p>
         <p id="dgSoundState" class="muted compact">Ses kapalı</p>
       </div></div>
+      <h3>Kâhya mikrofonu</h3>
+      <label class="toggle"><input id="dgMicEnabled" type="checkbox">Kâhya mikrofonu açık</label>
+      <label>Konuşma eşiği (düşük değer daha hassas)<input id="dgMicThreshold" type="range" min="0.005" max="0.2" step="0.005" value="0.025"></label>
+      <meter id="dgMicLevel" min="0" max="0.2" value="0" aria-label="Mikrofon ses seviyesi"></meter>
+      <p id="dgMicStatus" class="muted compact" role="status">Mikrofon kapalı</p>
       <h3>Sahne ve kamera</h3>
       <div class="row"><button data-dg-effect="break-halay">Halayı kopar</button><button data-dg-effect="throw-groom" class="ghost">Damadı havaya at</button>
         <button data-dg-effect="confetti" class="ghost">Konfeti</button><button data-dg-effect="scold" class="ghost">Kaynana müdahalesi</button></div>
@@ -82,6 +87,11 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
     return true;
   };
   const controls = get<HTMLFieldSetElement>('dgControls');
+  const micEnabled = get<HTMLInputElement>('dgMicEnabled');
+  const micThreshold = get<HTMLInputElement>('dgMicThreshold');
+  const configureMic = () => send({ action: 'set-microphone', enabled: micEnabled.checked, threshold: Number(micThreshold.value) });
+  micEnabled.onchange = configureMic;
+  micThreshold.oninput = configureMic;
   const personSelect = get<HTMLSelectElement>('dgPerson');
   const nameInput = get<HTMLInputElement>('dgName');
   const roleSelect = get<HTMLSelectElement>('dgRole');
@@ -161,7 +171,7 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
     hudVisible: 'Yayın ekranındaki yazıları göster', namesVisible: 'Karakter isimlerini göster',
   };
   const checkboxes = new Map<DugunOption, HTMLInputElement>();
-  const giftInputs = new Map<string, { gift: HTMLSelectElement; count: HTMLInputElement; dirty: boolean }>();
+  const giftInputs = new Map<string, { gift: HTMLSelectElement; customId: HTMLInputElement; count: HTMLInputElement; dirty: boolean }>();
   for (const [option, text] of Object.entries(optionLabels)) {
     const label = document.createElement('label'); label.className = 'toggle';
     const input = document.createElement('input'); input.type = 'checkbox';
@@ -246,27 +256,42 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
     get('dgBpm').textContent = `${Math.round(next.tempo)} BPM`;
     get('dgPhase').textContent = next.paused ? 'Duraklatıldı' : next.phase === 'ceremony' ? 'Araba töreni' : next.musicPlaying ? 'Halay' : 'Halay durdu';
     get('dgSoundState').textContent = next.soundEnabled ? 'Efekt sesi açık' : 'Efekt sesi kapalı';
+    if (next.microphone) {
+      micEnabled.checked = next.microphone.enabled;
+      if (document.activeElement !== micThreshold) micThreshold.value = String(next.microphone.threshold);
+      get<HTMLMeterElement>('dgMicLevel').value = next.microphone.level;
+      get('dgMicStatus').textContent = { off: 'Mikrofon kapalı', requesting: 'Oyun ekranında mikrofon izni bekleniyor…',
+        ready: 'Mikrofon açık · ses yalnız oyun ekranında analiz edilir', unavailable: 'Mikrofon yok · izin ve ses girişini kontrol edip kapat/aç' }[next.microphone.status];
+    }
     for (const rule of next.giftRules) {
       let inputs = giftInputs.get(rule.moment);
       if (!inputs) {
         const form = document.createElement('form'); form.className = 'gift-rule';
         const title = document.createElement('strong');
-        title.textContent = rule.moment === 'mendil' ? 'Halaybaşı' : rule.moment === 'havaya' ? 'Damadı havaya at' : ROLE_LABELS[rule.moment];
+        title.textContent = rule.moment === 'mendil' ? 'Halaybaşı' : rule.moment === 'ortaya' ? 'Ortaya çık' : rule.moment === 'havaya' ? 'Damadı havaya at' : ROLE_LABELS[rule.moment];
         const gift = document.createElement('select'); gift.setAttribute('aria-label', `${title.textContent} hediyesi`);
         for (const item of KNOWN_GIFTS) gift.add(new Option(item.name, item.id));
+        gift.add(new Option('Buket (ad ile)', 'bouquet'));
+        const customId = document.createElement('input'); customId.type = 'text'; customId.inputMode = 'numeric';
+        customId.pattern = '[0-9]{1,30}'; customId.placeholder = 'Gerçek hediye kimliği';
+        customId.setAttribute('aria-label', title.textContent + ' gerçek hediye kimliği');
         const count = document.createElement('input'); count.type = 'number'; count.min = '1'; count.max = '1000'; count.step = '1'; count.required = true;
         count.setAttribute('aria-label', `${title.textContent} hediye adedi`);
         const button = document.createElement('button'); button.textContent = 'Uygula'; button.className = 'ghost';
-        const values = { gift, count, dirty: false };
-        gift.onchange = count.oninput = () => { values.dirty = true; };
+        const values = { gift, customId, count, dirty: false };
+        customId.oninput = gift.onchange = count.oninput = () => { values.dirty = true; };
         form.onsubmit = (event) => {
           event.preventDefault();
-          if (send({ action: 'set-gift', rule: { moment: rule.moment, giftId: gift.value, count: Number(count.value) } })) values.dirty = false;
+          if (send({ action: 'set-gift', rule: { moment: rule.moment, giftId: customId.value.trim() || gift.value, count: Number(count.value) } })) values.dirty = false;
         };
-        form.append(title, gift, count, button); get('dgGiftRules').append(form);
+        form.append(title, gift, customId, count, button); get('dgGiftRules').append(form);
         giftInputs.set(rule.moment, values); inputs = values;
       }
-      if (!inputs.dirty && document.activeElement !== inputs.gift && document.activeElement !== inputs.count) {
+      if (!inputs.dirty && document.activeElement !== inputs.gift && document.activeElement !== inputs.count && document.activeElement !== inputs.customId) {
+        if (!Array.from(inputs.gift.options).some((o) => o.value === rule.giftId)) {
+          inputs.gift.add(new Option('Kimlik: ' + rule.giftId, rule.giftId));
+        }
+        inputs.customId.value = '';
         inputs.gift.value = rule.giftId; inputs.count.value = String(rule.count);
       }
     }

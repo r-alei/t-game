@@ -73,6 +73,11 @@ describe('düğün yönetim bağlantısı', () => {
 });
 
 it('yönetim komutları değer aralığı, boş kişi ve geçersiz rolleri reddeder', () => {
+  expect(parseDugunCommand({ action: 'set-microphone', enabled: true, threshold: 0.025 })).toEqual({ action: 'set-microphone', enabled: true, threshold: 0.025 });
+  expect(parseDugunCommand({ action: 'set-microphone', enabled: true, threshold: NaN })).toBeNull();
+  expect(parseDugunCommand({ action: 'set-microphone', enabled: true, threshold: 0 })).toBeNull();
+  expect(parseDugunCommand({ action: 'set-gift', rule: { moment: 'ortaya', giftId: '5879', count: 1 } })).not.toBeNull();
+  expect(parseDugunCommand({ action: 'assign', person: { name: 'X' }, role: 'kahya' })).toBeNull();
   expect(parseDugunCommand({ action: 'set-time', value: Infinity })).toBeNull();
   expect(parseDugunCommand({ action: 'set-tempo', value: 999 })).toBeNull();
   expect(parseDugunCommand({ action: 'assign', person: { name: ' ' }, role: 'gelin' })).toBeNull();
@@ -82,4 +87,9 @@ it('yönetim komutları değer aralığı, boş kişi ve geçersiz rolleri redde
   expect(parseDugunCommand({ action: 'set-gift', rule: { moment: 'gelin', giftId: '5655', count: -1 } })).toBeNull();
   expect(parseDugunCommand({ action: 'set-gift', rule: { moment: 'gelin', giftId: 'bilinmeyen', count: 1 } })).toBeNull();
   expect(parseDugunCommand({ action: 'assign', role: 'gelin', person: { viewer: { id: 'spoof', name: 'Sahte' } } })).toBeNull();
+});
+
+it('panel gerçek Buket kimliğini katalogda olmasa da kabul eder', () => {
+  expect(parseDugunCommand({ action: 'set-gift', rule: { moment: 'gelin', giftId: '9999', count: 1 } })).not.toBeNull();
+  expect(parseDugunCommand({ action: 'set-gift', rule: { moment: 'gelin', giftId: 'bouquet', count: 1 } })).not.toBeNull();
 });

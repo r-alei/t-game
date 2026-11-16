@@ -1,5 +1,19 @@
 # Düğün Dernek
 
+## Kâhya ve bahçe düğünü
+
+Kâhya yayıncının kalıcı figürüdür: yelek ve kasketle çalgıcıların yanında durur, etiketi **Kâhya**'dır. Katılımcı veya hediye rolü değildir; sıfırlamada yeniden kurulur. Yorumlara aralıklı dönüp el sallar; sessizlikte halaya bakar ve ara sıra alkışlar.
+
+Panelde **Kâhya mikrofonu** anahtarı ve **Konuşma eşiği** kaydırıcısı vardır. Anahtarı açınca mikrofon izni oyun ekranında alınır. RMS ses seviyesi yerel Web Audio analizinden geçer; histerezisli gürültü kapısı, 140 ms bekleme ve yumuşatma ağız, kollar ve başı hareket ettirir. Düşük eşik daha hassastır; fan sesiyle hareket olursa eşiği yükselt. Ham ses kaydedilmez, hoparlöre veya sunucuya gönderilmez. Panel yalnız seviye ve durumu mevcut yönetim akışından yaklaşık saniyede bir alır. Efekt sesi düğmeleri mikrofonu etkilemez. Mikrofon kapatılınca, oyun sıfırlanınca veya kapatılınca ses izleri ve AudioContext kapatılır.
+
+İzin/cihaz hatasında **Mikrofon yok** görünür ve karakter sessiz kalır; oyun sürer. Giriş cihazını ve izni kontrol edip anahtarı kapat/aç. Normal tarayıcı ses bağlamı için yerel oyun ekranına tıklama gerektirebilir; Electron yayın penceresi ses bağlamını otomatik başlatır. Electron yalnız HTTP(S) `localhost` / `127.0.0.1` kökeninden ses girişi iznine izin verir.
+
+Donut (`5879`) ×1 gönderen kişi **12 saniyeliğine ortaya çıkar**, tek elde mendil sallayarak döner; çiftin arasında ve arkasında, merkezde (0, 0, -0.9) oynar; yakın çekimin ardından yüksek açılı çekimle görünür kalır. Aynı anda bir solo vardır; yeni solo eskisini halaya döndürür. Özel rol taşıyan kişi soloya geçince eski rolü boşalır. Solo bitince, yeni düğünde veya törende halaya döner. Rol kilidi ve araba töreni ortaya çıkmayı da engeller. Eşleme panelden değiştirilebilir. Yayın ekranında hediye menüsü, hediye ikonu veya hediye çağrısı gösterilmez; duyuru yalnız sonucu anlatır.
+
+Bahçe: çim zemin ve çim kümeleri, kenarlarda ağaç/çiçekli çalılar, taş patika, arkada yuvarlak yemek masaları, sandalyeler, tabak, ekmek, elma ve ayakta lambalar. Pist (10,5 yarıçap), dış halay sırası (en çok 8,5), araba şeridi, mevcut çalgıcı sahnesi, bayrak/ampuller ve kamera açıları korunur. GLTFLoader yüklemeleri oyunu bekletmez; her modelin örnekleri InstancedMesh paylaşır. Kaynaklar ve lisanslar: [KAYNAK.md](../../../public/models/dugun/KAYNAK.md). Dönüştürme: `blender -b --python scripts/convert-dugun-models.py`.
+
+Düğün varsayılan çizim hedefi **60 FPS**; gerekirse `?game=dugun&fps=30` ile düşürülebilir. Gerçek FPS donanım ve katılımcı sayısına bağlıdır. Otomatik testler model sınırlarını ve boyut bütçesini denetler; gerçek mikrofon, görüntü ve FPS ayrıca yayın bilgisayarında kontrol edilmelidir.
+
 Bu klasördeki `BASLAT.cmd` ile açılır. Geliştirme adresi: `http://127.0.0.1:4300/?game=dugun`.
 
 ## Yönetim paneli
@@ -18,7 +32,7 @@ Panel ayrıca hediye/adet eşlemelerini, düğün ve kalan süreyi, tempoyu, izl
 
 ## Başlangıç ve katılım
 
-- Sahne boş başlar. Yapay misafir, gelin, damat, kaynana veya çalgıcı üretilmez.
+- İzleyici kadrosu boş başlar. Kâhya her zaman vardır; yapay misafir, gelin, damat, kaynana veya çalgıcı üretilmez.
 - Yorum yazan veya hediye gönderen gerçek izleyici sahneye katılır. Aynı kişi ikinci kez karakter oluşturmaz.
 - Halayda katılımcı sınırı ve kapasite nedeniyle izleyici çıkarma yoktur. Halka kişi sayısıyla genişler; gerçek performans bilgisayarın gücüne bağlıdır.
 - Yorumlar karakterin üzerinde balon olur; aynı anda en fazla üç balon gösterilir.
@@ -31,14 +45,17 @@ Görseller `client/public/gifts/` içindedir. Varsayılan görsel, adet, etiket 
 | Hediye | Adet | Etki |
 |---|---:|---|
 | Gül | 1 | Halaybaşı olur, kırmızı mendili alır |
-| Gül | 10 | Gelin olur |
-| Gül | 20 | Damat olur |
+| Buket (ad ile) | 1 | Gelin olur |
+| Parfüm (`5658`) | 1 | Damat olur |
 | GG | 5 | Davulcu olur |
 | GG | 10 | Zurnacı olur |
 | Parmak Kalp | 10 | Kaynana olur |
 | Konfeti | 1 | Damat varsa havaya attırır |
+| Donut | 1 | 12 saniyelik mendilli solo; önceki solo halaya döner |
 
-Adetler **aynı hediye serisinin toplamıdır**. Seri bitene kadar rol değiştirilmez; sonunda ulaşılan en yüksek eşik bir kez uygulanır. 20 güllük seride kişi ara adımlarda halaybaşı veya gelin yapılmadan doğrudan damat olur. GG 5–9 davulcu, 10+ zurnacı; Parmak Kalp 1–9 rol vermez, 10+ kaynana yapar. Aynı hediyenin düşük eşikleri mevcut yüksek rolü düşürmez: gelin veya damat tek gül gönderince halaybaşına dönmez. Farklı hediye kategorisiyle açıkça yeni rol alınabilir. Yeni seriler ayrı değerlendirilir; farklı seriler birikmez. Paneldeki test hediyeleri tamamlanmış paket gibi anında uygulanır.
+Adetler izleyici ve eşleşen hediye başına toplanır. Son artıştan 1,2 saniye sonra veya seri bitişinde ulaşılan en yüksek yeni eşik uygulanır; 30 saniyelik sessizlikte sayaç silinir. GG 5–9 davulcu, 10+ zurnacı; Parmak Kalp 10+ kaynana yapar. Gül yalnız halaybaşı yapar; 10/20 gül gelin veya damat yapmaz. Farklı hediye kategorisi yeni rol verebilir. Aynı hediyenin düşük eşiği mevcut yüksek rolü düşürmez.
+
+Buket'in gerçek TikTok kimliği bilinmiyor. Geçici kural `giftId: 'bouquet', giftName: 'bouquet'` kullanır: kimlik eşleşir veya küçük harfe çevrilen hediye adı **bouquet** / **buket** içerirse gelin olur. Adla gelen olaylar da aynı sayaçta toplanır. Panelde **Buket (ad ile)** görünür; **Gerçek hediye kimliği** alanına sayısal kimlik yazıp Uygula'ya basınca ad eşleşmesi kapanır ve yalnız kimlik kullanılır. Geçici ikon rose.webp'dir; bilinen hediye kataloğuna Buket eklenmez. Sunucu her normalize hediye artışı için tek satır yazar: örnek (temsili kimlik) `[hediye] 9999 Bouquet x1`. İlk gerçek Buket geldiğinde bu satırdaki kimlik panelde kullanılabilir.
 
 Bir izleyici aynı anda tek özel rol taşır. Yeni kişi rolü aldığında önceki sahibi halaya döner. Rol değiştirilince eski rol boş kalır; yerine yapay karakter konmaz. Menü dışındaki hediyeler göndereni sahneye katar, özel rol veya rastgele etki vermez.
 
@@ -61,6 +78,6 @@ Kaynana, eşlenmiş hediyeyi gönderen izleyiciyle veya panelden atamayla oluşu
 
 ## Dosyalar ve doğrulama
 
-`DugunGame.ts`: roller, olaylar ve düğün döngüsü. `config.ts`: menü ve süreler. `dancers.ts`: figürler ve halay halkası. `world.ts`: meydan ve araba. `hud.ts`: başlık, menü, süre ve duyurular. Gelin/damat bilgi kutuları gösterilmez; roller sahnedeki karakterler ve değişim duyurularıyla anlaşılır.
+`DugunGame.ts`: roller, solo, olaylar ve düğün döngüsü. `config.ts`: eşlemeler ve süreler. `dancers.ts`: figürler ve halay halkası. `kahya.ts` / `microphone.ts`: yayıncı karakteri ve ses analizi. `world.ts` / `garden.ts`: bahçe ve araba. `hud.ts`: başlık, süre ve sonuç duyuruları. Roller sahnedeki karakterler ve değişim duyurularıyla anlaşılır.
 
-`npm test`, `npm run typecheck`, `npm run build` ile kontrol edilir. `tests/dugun.test.ts` boş başlangıcı, bin katılımcıyı, gül serisi eşiklerini, kaynana devrini ve finalde rollerin korunmasını denetler. Hediye kimlikleri gerçek TikTok yayınında ayrıca doğrulanmalıdır.
+`npm test`, `npm run typecheck`, `npm run build` ile kontrol edilir. `tests/dugun.test.ts` boş başlangıcı, bin katılımcıyı, Parfüm/Buket eşlemelerini, gülün yalnız halaybaşı olmasını, solo hedefini ve kamerasını, kaynana devrini ve finalde rollerin korunmasını denetler. Hediye kimlikleri gerçek TikTok yayınında ayrıca doğrulanmalıdır.

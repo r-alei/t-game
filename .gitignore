@@ -2,3 +2,6 @@ node_modules/
 dist/
 .env
 *.log
+
+# Ham asset paketleri (yalnız seçilenler client/public altına kopyalanır)
+asset-src/

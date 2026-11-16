@@ -6,7 +6,7 @@
  *  - Sunucu henüz açılmadıysa hazır olana kadar tekrar dener.
  * Pencereyi sürükleyerek taşıyabilirsin; Esc kapatır.
  */
-const { app, BrowserWindow, screen } = require('electron');
+const { app, BrowserWindow, screen, session } = require('electron');
 
 const URL = process.env.OYUN_URL || 'http://127.0.0.1:4300/';
 const TITLE = 'Canlı Oyun · Yayın Ekranı';
@@ -19,6 +19,19 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 app.whenReady().then(() => {
+  const localOrigin = (origin) => {
+    try {
+      const url = new globalThis.URL(origin);
+      return ['http:', 'https:'].includes(url.protocol) && ['127.0.0.1', 'localhost'].includes(url.hostname);
+    } catch { return false; }
+  };
+  // Sadece yerel oyun kökeninin ses girişi isteği kabul edilir.
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
+    callback(permission === 'media' && localOrigin(details.requestingUrl)
+      && details.mediaTypes?.includes('audio') && !details.mediaTypes?.includes('video'));
+  });
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission, origin, details) =>
+    permission === 'media' && localOrigin(origin) && details.mediaType === 'audio');
   // Ekrana sığan en büyük 9:16 boyut (1080p ekranda 576×1024)
   const work = screen.getPrimaryDisplay().workAreaSize;
   const height = Math.min(1920, work.height - (work.height % 16));

@@ -12,7 +12,7 @@ import { colorFor, createNameTag } from '../../engine/nameTag.ts';
 import { disposeSprite } from '../../engine/textSprite.ts';
 import { BODY, RING, TIMING } from './config.ts';
 
-export type Outfit = 'guest' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci';
+export type Outfit = 'guest' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci' | 'kahya';
 
 const SKIN = ['#f1c7a5', '#e0ac85', '#c98e66', '#a8714f', '#f5d6bd'];
 const HAIR = ['#2b1d14', '#4a2f1e', '#7a5634', '#1a1a1a', '#b88a4a'];
@@ -176,6 +176,9 @@ type Motion =
   | { kind: 'thrown'; vel: THREE.Vector3; spin: number; t: number };
 
 export class Dancer {
+  /** Yayıncı sesi; izleyici rollerinden bağımsız Kâhya kullanır. */
+  speechLevel = 0;
+  private readonly headGroup = new THREE.Group();
   readonly group = new THREE.Group();
   /** Gövde ekseni: düşme ve fırlama dönüşleri buna uygulanır (ayaklardan döner) */
   private readonly body = new THREE.Group();
@@ -245,14 +248,17 @@ export class Dancer {
     for (const ex of [-0.09, 0.09]) {
       const eye = new THREE.Mesh(GEO.eye, MAT.eye);
       eye.position.set(ex, 1.8, 0.252);
-      this.body.add(eye);
+      this.headGroup.add(eye);
     }
     this.arms = [new Arm(-1, this.torsoMat, skin), new Arm(1, this.torsoMat, skin)];
     for (const m of [torso, head, cap]) m.castShadow = true;
 
     // Takılan çeyrekler göğüste, gövdenin eğrisine yapışık durur
     this.coins.position.set(0, 1.34, 0);
-    this.body.add(this.legL, this.legR, torso, head, cap, this.arms[0].shoulder, this.arms[1].shoulder, this.outfitGroup, this.coins);
+    this.headGroup.add(head, cap);
+    this.headGroup.position.y = 1.78;
+    for (const part of this.headGroup.children) part.position.y -= 1.78;
+    this.body.add(this.legL, this.legR, torso, this.headGroup, this.arms[0].shoulder, this.arms[1].shoulder, this.outfitGroup, this.coins);
     this.group.add(this.body);
 
     if (viewer) {
@@ -307,6 +313,15 @@ export class Dancer {
     // Etekli kıyafette bacaklar gizli: halay tekmesinde etekten dışarı çıkmasın
     this.legL.visible = this.legR.visible = outfit !== 'gelin' && outfit !== 'kaynana';
     switch (outfit) {
+      case 'kahya': {
+        this.torsoMat.color.set('#eee2c8');
+        for (const x of [-0.16, 0.16]) add(new THREE.BoxGeometry(0.19, 0.48, 0.1), '#5b4938', [x, 1.23, 0.23]);
+        add(new THREE.SphereGeometry(0.32, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), '#5b4938', [0, 0.09, 0], {}, this.headGroup);
+        add(new THREE.BoxGeometry(0.43, 0.045, 0.29), '#5b4938', [0, 0.18, 0.22], {}, this.headGroup);
+        const mouth = add(new THREE.SphereGeometry(1, 10, 6), '#54231d', [0, -0.12, 0.26], {}, this.headGroup);
+        mouth.name = 'kahya-mouth'; mouth.scale.set(0.07, 0.012, 0.025);
+        break;
+      }
       case 'guest':
         this.torsoMat.color.set(this.baseColor);
         break;
@@ -612,6 +627,13 @@ export class Dancer {
 
     this.raise += ((dancing ? 1 : 0) - this.raise) * Math.min(1, dt * 3);
     this.poseArms(dt, now, t, b, beat, dancing && dancer);
+    if (this.outfit === 'kahya') {
+      const level = this.speechLevel;
+      const mouth = this.headGroup.getObjectByName('kahya-mouth');
+      if (mouth) mouth.scale.y = 0.012 + level * (0.025 + Math.abs(Math.sin(now * 19)) * 0.065);
+      this.headGroup.rotation.x = Math.sin(now * 7) * level * 0.08;
+      this.body.rotation.z = Math.sin(now * 4) * level * 0.035;
+    }
 
     // ---- etiket ve balon
     if (this.tag) {
@@ -666,6 +688,13 @@ export class Dancer {
         const s = Math.sin(m.t * 12) * sgn;
         arm.fk(s * 0.45, 0.14, 0.35);
         mode[i] = M_WALK;
+      } else if (this.outfit === 'kahya') {
+        const level = this.speechLevel;
+        if (level > 0.025) arm.fk(-0.25 - level * (0.3 + Math.sin(t * 7 + i) * 0.2), 0.25 + level * 0.65, 0.6 + level * 0.6);
+        else if (beat.playing && now % 18 > 13) {
+          arm.ik(_m.set(sgn * (0.06 + Math.abs(Math.sin(b * Math.PI)) * 0.13), 1.35, 0.45), _pole.set(sgn, -1, 0));
+        } else arm.fk(0, 0.12, 0.2);
+        mode[i] = M_PLAY;
       } else if (this.outfit === 'davulcu') {
         this.playDrum(arm, i, beat);
         mode[i] = M_PLAY;

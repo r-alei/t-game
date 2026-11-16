@@ -1,12 +1,12 @@
 /**
  * Ekran yazıları:
- *   üstte: başlık + kalan süre, tek satır hediye menüsü, tempo çubuğu
+ *   üstte: başlık + kalan süre ve tempo çubuğu
  *   ortada: son 30 sn dev geri sayım
  *   altta: sunucu satırı ("ayse'den bir çeyrek!") ve "Yorum yaz, halaya katıl" çağrısı
  * Kullanıcı adları yalnız textContent ile yazılır.
  */
 import { SAFE, SCREEN } from '../../engine/layout.ts';
-import { MENU, TEMPO, type MenuItem } from './config.ts';
+import { TEMPO } from './config.ts';
 
 /** TikTok üst barının (0–200) hemen altı */
 const TOP = 206;
@@ -17,13 +17,6 @@ const css = /* css */ `
 .dg-title { font:900 46px/1 'Segoe UI',sans-serif; letter-spacing:1px; color:#fff;
   text-shadow:0 3px 0 #9a1020, 0 5px 14px rgba(0,0,0,.45); }
 .dg-clock { font:800 34px/1 'Segoe UI',sans-serif; color:#fff; background:rgba(120,10,30,.62); padding:8px 18px; border-radius:30px; }
-.dg-menu { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; padding:8px;
-  background:rgba(120,10,30,.5); border-radius:22px; }
-.dg-menu div { display:flex; flex-direction:column; align-items:center; gap:4px;
-  font:900 22px/1 'Segoe UI',sans-serif; color:#fff; text-shadow:0 2px 3px #000; white-space:nowrap; min-width:0; }
-.dg-menu img { width:48px; height:48px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
-.dg-menu .flash { animation: dg-flash .9s ease-out; }
-@keyframes dg-flash { 0% { transform:scale(1.35); color:#ffd25e } 100% { transform:scale(1) } }
 .dg-tempo { position:relative; height:30px; border-radius:16px; background:rgba(0,0,0,.45); overflow:hidden; border:2px solid rgba(255,255,255,.7); }
 .dg-tempo i { position:absolute; left:0; top:0; bottom:0; width:0; border-radius:14px;
   background:linear-gradient(90deg,#3fcf6a,#ffd25e 60%,#ff3b3b); transition:width .15s linear; }
@@ -54,8 +47,6 @@ const css = /* css */ `
 export class Hud {
   private readonly root = document.createElement('div');
   private readonly clock: HTMLDivElement;
-  private readonly menuCells = new Map<string, HTMLDivElement[]>();
-  private readonly menu = div('dg-menu');
   private readonly tempo: HTMLDivElement;
   private readonly tempoFill: HTMLElement;
   private readonly tempoText: HTMLSpanElement;
@@ -77,13 +68,11 @@ export class Hud {
     this.clock = div('dg-clock');
     row1.append(title, this.clock);
 
-    this.setMenu(MENU);
-
     this.tempo = div('dg-tempo');
     this.tempoFill = document.createElement('i');
     this.tempoText = document.createElement('span');
     this.tempo.append(this.tempoFill, this.tempoText);
-    head.append(row1, this.menu, this.tempo);
+    head.append(row1, this.tempo);
 
     this.countLabel = div('dg-count-label');
     this.countLabel.textContent = 'GELİN ARABASI GELİYOR!';
@@ -94,7 +83,7 @@ export class Hud {
     ann.append(this.announceEl);
 
     const cta = div('dg-cta');
-    const messages = ['Yorum yaz, <b>halaya katıl</b> 💃', 'Beğen, <b>davul hızlansın</b> 🥁', 'Hediye menüsünden <b>rolünü seç</b>'];
+    const messages = ['Yorum yaz, <b>halaya katıl</b> 💃', 'Beğen, <b>davul hızlansın</b> 🥁'];
     let i = 0;
     cta.innerHTML = `<span>${messages[0]}</span>`;
     this.ctaTimer = window.setInterval(() => {
@@ -112,20 +101,6 @@ export class Hud {
 
   setVisible(visible: boolean): void {
     this.root.hidden = !visible;
-  }
-
-  setMenu(items: readonly MenuItem[]): void {
-    this.menu.replaceChildren();
-    this.menuCells.clear();
-    for (const item of items) {
-      const cell = div('');
-      const img = document.createElement('img');
-      img.src = item.icon; img.alt = item.label;
-      const amount = document.createElement('span'); amount.textContent = `×${item.count}`;
-      const label = document.createElement('span'); label.textContent = item.label;
-      cell.append(img, amount, label); this.menu.append(cell);
-      this.menuCells.set(item.giftId, [...(this.menuCells.get(item.giftId) ?? []), cell]);
-    }
   }
 
   setTempo(bpm: number, playing: boolean): void {
@@ -157,14 +132,6 @@ export class Hud {
     this.announceEl.classList.remove('show');
     void this.announceEl.offsetWidth;
     this.announceEl.classList.add('show');
-  }
-
-  flash(giftId: string): void {
-    for (const cell of this.menuCells.get(giftId) ?? []) {
-      cell.classList.remove('flash');
-      void cell.offsetWidth;
-      cell.classList.add('flash');
-    }
   }
 
   dispose(): void {

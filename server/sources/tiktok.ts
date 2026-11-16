@@ -80,7 +80,13 @@ export class TikTokSource {
     const forward = (type: LiveEventType) => (raw: unknown) => {
       if (gen !== this.generation) return;
       const result = normalize(type, raw, Date.now(), streaks);
-      if (result.ok) this.handlers.onEvent(result.event);
+      if (result.ok) {
+        if (result.event.type === 'gift') {
+          const e = result.event;
+          console.log(`[hediye] ${e.giftId} ${e.giftName.replace(/[\r\n]+/g, ' ')} x${e.count}`);
+        }
+        this.handlers.onEvent(result.event);
+      }
       else if (result.reason === 'invalid') console.warn(`[tiktok] ${type} atlandı: ${result.detail}`);
       if (type === 'gift') {
         const completed = normalizeGiftCompletion(raw);

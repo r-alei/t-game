@@ -1,9 +1,10 @@
 /**
- * Mahalle meydanı, ikindi vakti. Ortada halay alanı; arkada çalgıcı sahnesi ve evler,
- * yanlarda beyaz örtülü masalar, tepede süs bayrakları ve ampul zincirleri.
+ * Bahçe düğünü, ikindi vakti. Ortada halay alanı; arkada çalgıcı sahnesi ve yemek masaları,
+ * kenarlarda çim, çiçekli çalılar ve ağaçlar, tepede süs bayrakları ve ampul zincirleri.
  * Gündüz: telefonda isimler ve yüzler okunur kalsın.
  */
 import * as THREE from 'three';
+import { Garden } from './garden.ts';
 import { createTextSprite, disposeSprite } from '../../engine/textSprite.ts';
 
 const mat = (color: string, roughness = 0.85) => new THREE.MeshStandardMaterial({ color, roughness });
@@ -20,6 +21,7 @@ export class World {
   readonly sun: THREE.DirectionalLight;
   private readonly bunting: THREE.Group[] = [];
   private t = 0;
+  private readonly garden: Garden;
 
   constructor(scene: THREE.Scene) {
     scene.background = new THREE.Color('#9fcbec');
@@ -44,7 +46,7 @@ export class World {
     this.sun = new THREE.DirectionalLight('#fff0d8', 2.4);
     this.sun.position.set(-18, 26, 22);
     this.sun.castShadow = true;
-    // Gölge kutusu tüm meydanı (yan evler, masalar, sahne) kapsar; kenarda kesik gölge çizgisi olmasın
+    // Gölge kutusu tüm bahçeyi kapsar; kenarda kesik gölge çizgisi olmasın
     this.sun.shadow.mapSize.set(2048, 2048);
     const c = this.sun.shadow.camera;
     c.left = -32; c.right = 32; c.top = 32; c.bottom = -32; c.near = 1; c.far = 100;
@@ -52,17 +54,17 @@ export class World {
     this.group.add(this.sun, this.sun.target);
 
     this.buildGround();
-    this.buildHouses();
-    this.buildTables();
+    this.buildWelcomeSign();
+
     this.buildStage();
     this.buildBunting();
-    this.buildTrees();
+    this.garden = new Garden(this.group);
     scene.add(this.group);
   }
 
   private buildGround(): void {
-    // Toprak meydan + ortada taş döşeli halay alanı
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(90, 48), mat('#cbb48a', 1));
+    // Çim bahçe + ortada taş döşeli halay alanı
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(90, 48), mat('#739253', 1));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.group.add(ground);
@@ -92,42 +94,7 @@ export class World {
     this.group.add(floor);
   }
 
-  private buildHouses(): void {
-    // Arkada ve yanlarda kiremit çatılı pastel evler
-    const walls = ['#f3dcc0', '#e9c9c9', '#d8e3c8', '#f5e6a8', '#cfdbe8', '#f0d2b0'];
-    const roof = mat('#b4532f', 0.9);
-    const windowMat = mat('#4b6a86', 0.4);
-    const place = (x: number, z: number, rotY: number, i: number) => {
-      const w = 6 + (i % 3) * 1.5;
-      const h = 6 + ((i * 7) % 4) * 1.6;
-      const d = 6;
-      const house = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(walls[i % walls.length], 0.95));
-      body.position.y = h / 2;
-      body.castShadow = body.receiveShadow = true;
-      const top = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, 2.6, 4), roof);
-      top.position.y = h + 1.3;
-      top.rotation.y = Math.PI / 4;
-      top.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d));
-      house.add(body, top);
-      for (let fy = 2.2; fy < h - 1; fy += 2.6) {
-        for (let fx = -w / 2 + 1.4; fx < w / 2 - 0.8; fx += 2) {
-          const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), windowMat);
-          win.position.set(fx + 0.3, fy, d / 2 + 0.03);
-          house.add(win);
-        }
-      }
-      house.position.set(x, 0, z);
-      house.rotation.y = rotY;
-      this.group.add(house);
-    };
-    let i = 0;
-    for (let x = -30; x <= 30; x += 8.5) place(x, -30 - (i % 2) * 2, 0, i++);
-    // Yan sıralar: z≈-9'da sokak ağzı boş kalır, gelin arabası evlerin içinden geçmesin
-    for (const z of [-22, -0.5, 8.5]) {
-      place(-27, z, Math.PI / 2, i++);
-      place(27, z, -Math.PI / 2, i++);
-    }
+  private buildWelcomeSign(): void {
     // Çalgıcı sahnesinin arka bezine asılı "HOŞ GELDİNİZ" pankartı. Sprite değil düz levha:
     // kameraya dönmez, uzaktaki evin tepesinde (başlığın arkasında) kalmaz.
     const sprite = createTextSprite('HOŞ GELDİNİZ', { color: '#b3141b', background: '#fff8ea', font: '900 90px Segoe UI, sans-serif', height: 0.8, padding: 26 });
@@ -135,43 +102,6 @@ export class World {
     sprite.material.dispose();
     sign.position.set(SPOTS.musicians.x, 3.25, SPOTS.musicians.z - 1.95);
     this.group.add(sign);
-  }
-
-  private buildTables(): void {
-    const cloth = mat('#fbfbf7', 0.9);
-    const chair = mat('#c8202a', 0.6);
-    const leg = mat('#777', 0.5);
-    const bottle = new THREE.MeshStandardMaterial({ color: '#d84a2a', roughness: 0.4 });
-    const add = (x: number, z: number) => {
-      const t = new THREE.Group();
-      const top = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.9, 20), cloth);
-      top.position.y = 0.45;
-      top.castShadow = top.receiveShadow = true;
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.35, 8), bottle);
-      b.position.y = 1.07;
-      t.add(top, b);
-      for (let k = 0; k < 4; k++) {
-        const a = (k / 4) * Math.PI * 2 + 0.4;
-        const ch = new THREE.Group();
-        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.55), chair);
-        seat.position.y = 0.5;
-        const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.06), chair);
-        back.position.set(0, 0.82, 0.26);
-        const l = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), leg);
-        l.position.y = 0.25;
-        ch.add(seat, back, l);
-        ch.position.set(Math.cos(a) * 1.7, 0, Math.sin(a) * 1.7);
-        ch.rotation.y = -a + Math.PI / 2;
-        t.add(ch);
-      }
-      t.position.set(x, 0, z);
-      this.group.add(t);
-    };
-    for (const z of [-6, -1, 4]) {
-      add(-15, z);
-      add(15, z);
-    }
-    for (const x of [-11, -5]) add(x, -15.5);
   }
 
   private buildStage(): void {
@@ -248,21 +178,7 @@ export class World {
     line(poles[1], poles[3], 1.4);
   }
 
-  private buildTrees(): void {
-    const trunk = mat('#6b4a2e');
-    const leaves = mat('#4f8a3a', 0.9);
-    for (const [x, z] of [[-20, -16], [20, -18], [-21, 12], [21, 13], [-9, -22], [11, -23]]) {
-      const t = new THREE.Group();
-      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 3, 8), trunk);
-      tr.position.y = 1.5;
-      const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 1), leaves);
-      crown.position.y = 4.3;
-      tr.castShadow = crown.castShadow = true;
-      t.add(tr, crown);
-      t.position.set(x, 0, z);
-      this.group.add(t);
-    }
-  }
+  dispose(): void { this.garden.dispose(); }
 
   update(dt: number): void {
     this.t += dt;

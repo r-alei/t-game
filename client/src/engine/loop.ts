@@ -1,11 +1,12 @@
 /**
  * Sabit adımlı güncelleme + sınırlı kare hızında çizim.
- * Oyun mantığı kare hızından bağımsızdır; çizim varsayılan 30 fps ile sınırlıdır
+ * Oyun mantığı kare hızından bağımsızdır; Düğün 60, diğer oyunlar varsayılan 30 fps ile sınırlıdır
  * (TikTok yayını zaten 30 fps; 144 Hz ekranda GPU boşuna 5 kat çalışmasın).
  * Adreste ?fps=60 ile değiştirilebilir.
  */
-const requested = Number(new URLSearchParams(location.search).get('fps'));
-const MAX_FPS = requested > 0 ? requested : 30;
+const params = new URLSearchParams(location.search);
+const requested = Number(params.get('fps'));
+const MAX_FPS = requested > 0 ? requested : params.get('game') === 'dugun' ? 60 : 30;
 
 export class Loop {
   private last = 0;

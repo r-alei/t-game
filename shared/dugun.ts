@@ -1,12 +1,11 @@
 import type { Viewer } from './events.ts';
-import { findGift } from './gifts.ts';
 
 export const GIFT_ICONS: Record<string, string> = {
-  '5655': 'rose', '5487': 'finger-heart', '6064': 'gg', '5879': 'doughnut', '5658': 'perfume',
+  bouquet: 'rose', '5655': 'rose', '5487': 'finger-heart', '6064': 'gg', '5879': 'doughnut', '5658': 'perfume',
   '5585': 'confetti', '8750': 'microphone', '6097': 'little-crown', '6267': 'corgi', '5712': 'trophy',
 };
-export type DugunGiftMoment = 'mendil' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci' | 'havaya';
-export interface DugunGiftRule { moment: DugunGiftMoment; giftId: string; count: number }
+export type DugunGiftMoment = 'mendil' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci' | 'havaya' | 'ortaya';
+export interface DugunGiftRule { moment: DugunGiftMoment; giftId: string; giftName?: string; count: number }
 
 export const DUGUN_ROLES = ['guest', 'halaybasi', 'gelin', 'damat', 'kaynana', 'davulcu', 'zurnaci'] as const;
 export type DugunRole = typeof DUGUN_ROLES[number];
@@ -23,6 +22,7 @@ export type DugunCommand =
   | { action: 'clear-role'; role: Exclude<DugunRole, 'guest'> }
   | { action: 'set-time' | 'set-duration' | 'set-tempo'; value: number }
   | { action: 'set-option'; option: DugunOption; value: boolean }
+  | { action: 'set-microphone'; enabled: boolean; threshold: number }
   | { action: 'set-gift'; rule: DugunGiftRule }
   | { action: 'effect'; effect: 'break-halay' | 'throw-groom' | 'confetti' | 'scold' }
   | { action: 'camera'; view: DugunCamera; id?: string }
@@ -41,6 +41,7 @@ export interface DugunState {
   notice: string;
   paused: boolean;
   soundEnabled: boolean;
+  microphone?: { enabled: boolean; threshold: number; level: number; status: 'off' | 'requesting' | 'ready' | 'unavailable' };
 }
 
 /** WebSocket sınırında yalnız bilinen komut ve sonlu, aralıklı değerler kabul edilir. */
@@ -49,6 +50,9 @@ export function parseDugunCommand(input: unknown): DugunCommand | null {
   const c = input as Record<string, unknown>;
   const text = (value: unknown) => typeof value === 'string' && value.trim().length > 0 && value.length <= 200;
   switch (c.action) {
+    case 'set-microphone': return typeof c.enabled === 'boolean' && typeof c.threshold === 'number'
+      && Number.isFinite(c.threshold) && c.threshold >= 0.005 && c.threshold <= 0.2
+      ? { action: c.action, enabled: c.enabled, threshold: c.threshold } : null;
     case 'assign': {
       if (!DUGUN_ROLES.includes(c.role as DugunRole) || !c.person || typeof c.person !== 'object') return null;
       const person = c.person as Record<string, unknown>;
@@ -72,8 +76,8 @@ export function parseDugunCommand(input: unknown): DugunCommand | null {
     case 'set-gift': {
       if (!c.rule || typeof c.rule !== 'object') return null;
       const r = c.rule as Record<string, unknown>;
-      return ['mendil', 'gelin', 'damat', 'kaynana', 'davulcu', 'zurnaci', 'havaya'].includes(String(r.moment))
-        && typeof r.giftId === 'string' && !!findGift(r.giftId)
+      return ['mendil', 'gelin', 'damat', 'kaynana', 'davulcu', 'zurnaci', 'havaya', 'ortaya'].includes(String(r.moment))
+        && typeof r.giftId === 'string' && /^(?:[0-9]{1,30}|bouquet)$/.test(r.giftId)
         && typeof r.count === 'number' && Number.isInteger(r.count) && r.count >= 1 && r.count <= 1000
         ? { action: c.action, rule: { moment: r.moment as DugunGiftMoment, giftId: r.giftId, count: r.count } } : null;
     }
