@@ -1,10 +1,18 @@
 import type { Viewer } from './events.ts';
 
 export const GIFT_ICONS: Record<string, string> = {
-  bouquet: 'rose', '5655': 'rose', '5487': 'finger-heart', '6064': 'gg', '5879': 'doughnut', '5658': 'perfume',
+  '5655': 'rose', '5487': 'finger-heart', '6064': 'gg', '5879': 'doughnut', '5658': 'perfume',
   '5585': 'confetti', '8750': 'microphone', '6097': 'little-crown', '6267': 'corgi', '5712': 'trophy',
 };
-export type DugunGiftMoment = 'mendil' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci' | 'havaya' | 'ortaya';
+export const NAMED_GIFTS: Record<string, { name: string; match: string }> = {
+  bouquet: { name: 'Buket', match: 'bouquet' }, tea: { name: 'Çay', match: 'tea' },
+  heart: { name: 'Kalp (10 jeton)', match: 'heart' },
+};
+export type DugunGiftMoment = 'mendil' | 'gelin' | 'damat' | 'kaynana' | 'davulcu' | 'zurnaci' | 'havaya' | 'ortaya' | 'ceyrek' | 'para';
+export const GIFT_EFFECT_LABELS: Record<DugunGiftMoment, string> = {
+  mendil: 'Halaybaşı', gelin: 'Gelin', damat: 'Damat', kaynana: 'Kaynana', davulcu: 'Davulcu',
+  zurnaci: 'Zurnacı', havaya: 'Damadı havaya at', ortaya: 'Mendilli solo', ceyrek: 'Geline altın', para: 'Oyun parası saçma',
+};
 export interface DugunGiftRule { moment: DugunGiftMoment; giftId: string; giftName?: string; count: number }
 
 export const DUGUN_ROLES = ['guest', 'halaybasi', 'gelin', 'damat', 'kaynana', 'davulcu', 'zurnaci'] as const;
@@ -71,8 +79,8 @@ export function parseDugunCommand(input: unknown): DugunCommand | null {
     case 'set-gift': {
       if (!c.rule || typeof c.rule !== 'object') return null;
       const r = c.rule as Record<string, unknown>;
-      return ['mendil', 'gelin', 'damat', 'kaynana', 'davulcu', 'zurnaci', 'havaya', 'ortaya'].includes(String(r.moment))
-        && typeof r.giftId === 'string' && /^(?:[0-9]{1,30}|bouquet)$/.test(r.giftId)
+      return Object.hasOwn(GIFT_EFFECT_LABELS, String(r.moment))
+        && typeof r.giftId === 'string' && /^(?:[0-9]{1,30}|bouquet|tea|heart)$/.test(r.giftId)
         && typeof r.count === 'number' && Number.isInteger(r.count) && r.count >= 1 && r.count <= 1000
         ? { action: c.action, rule: { moment: r.moment as DugunGiftMoment, giftId: r.giftId, count: r.count } } : null;
     }

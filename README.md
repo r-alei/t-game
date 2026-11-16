@@ -4,7 +4,7 @@ TikTok LIVE için three.js ile yazılmış etkileşimli yayın oyunu altyapısı
 
 İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [client/src/games/vapur/README.md](client/src/games/vapur/README.md).
 
-**Düğün Dernek** bahçe düğünü: izleyici kadrosu boş başlar, yayıncının **Düğün Dayısı** ayrı yatay pencerede mikrofon sesine tepki verir. Mikrofon izni yalnız dayı ekranında alınır. Seri sonunda Gül ×1 halaybaşı, Buket ×1 gelin (ad eşleşmesi), Parfüm (`5658`) ×1 damat; GG ×5 davulcu, GG ×10 zurnacı; Parmak Kalp ×10 kaynana yapar. Donut ×1, 12 saniyelik mendilli solo başlatır. Seri sırasında ara roller verilmez. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
+**Düğün Dernek** bahçe düğünü: izleyici kadrosu boş başlar, yayıncının **Düğün Dayısı** ayrı yatay pencerede mikrofon sesine tepki verir. Parmak Kalp ×1 halaybaşı; Gül ×1 geline altın bildirimi; Çay ×1 zurnacı; GG ×1 dekoratif oyun parası; 10 jetonluk normal Kalp ×1 kaynana yapar. Buket ×1 gelin, Parfüm ×1 damat, Donut ×1 mendilli solo eşlemeleri korunur. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
 
 ## Başka bilgisayarda kurulum ve birlikte geliştirme
 

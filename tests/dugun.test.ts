@@ -9,6 +9,9 @@ vi.mock('../client/src/engine/particles.ts', () => ({
   Confetti: class { burst = vi.fn(); update = vi.fn(); },
   Floaters: class { spawn = vi.fn(); update = vi.fn(); },
 }));
+vi.mock('../client/src/games/dugun/money.ts', () => ({
+  MoneyRain: class { burst = vi.fn(); update = vi.fn(); dispose = vi.fn(); },
+}));
 vi.mock('../client/src/games/dugun/world.ts', () => ({
   SPOTS: { car: new THREE.Vector3(), musicians: new THREE.Vector3() },
   World: class { update = vi.fn(); },
@@ -170,20 +173,22 @@ describe('Düğün gerçek izleyici akışı', () => {
     game.dispose();
   });
 
-  it('GG seri bitişi beklenmeden rol verilir; kısa arayla gelen ayrı seriler toplanır', () => {
+  it('GG para efektini yeniler; geç gelen seri sonu aynı adedi tekrar oynatmaz', () => {
     const inc = (n: number, total: number): GiftEvent => ({ ...gift('zeyno', n, '6064'), id: `z${total}`, streakTotal: total });
     game.onEvent(inc(1, 1)); game.onEvent(inc(4, 5));
     tick(0.5);
     expect(state.halaybasi).toBeNull();
     tick(1);
-    expect(state.musicians.davulcu?.viewer.id).toBe('zeyno');
-    // Seri bitti sinyali hiç gelmedi; ikinci seri 5 GG daha: toplam 10 = zurnacı
+    expect(state.money.burst).toHaveBeenCalledTimes(1);
+    expect(state.musicians.davulcu).toBeNull();
     game.onEvent(inc(5, 5));
     tick(1.5);
-    expect(state.musicians.zurnaci?.viewer.id).toBe('zeyno');
+    expect(state.money.burst).toHaveBeenCalledTimes(2);
+    expect(state.musicians.zurnaci).toBeNull();
     // Geç gelen seri sonu (toplam 5) tekrar saymaz
     game.onEvent({ ...gift('zeyno', 5, '6064'), type: 'gift-finished', id: 'fz' } as never);
     tick(1.5);
+    expect(state.money.burst).toHaveBeenCalledTimes(2);
     expect(state.thrones.damat.dancer).toBeNull();
   });
 
@@ -191,7 +196,8 @@ describe('Düğün gerçek izleyici akışı', () => {
     game.onEvent({ ...gift('ali', 2, '6064'), streakTotal: 2 });
     game.onEvent({ ...gift('ali', 7), type: 'gift-finished', id: 'fa', giftId: '6064' } as never);
     game.onEvent({ ...gift('ali', 10, '6064'), type: 'gift-finished', id: 'fb' } as never);
-    expect(state.musicians.zurnaci?.viewer.id).toBe('ali');
+    expect(state.money.burst).toHaveBeenCalledTimes(2);
+    expect(state.musicians.zurnaci).toBeNull();
   });
 
   it('başlangıç, boş geçen düğün ve sıfırlama yapay karakter üretmez', () => {
@@ -222,7 +228,7 @@ describe('Düğün gerçek izleyici akışı', () => {
     }
   });
 
-  it('20 gülü aşan seri yalnız halaybaşı yapar', () => {
+  it('20 gülü aşan seri rol değiştirmez; gelin yoksa takı bildirimi gösterir', () => {
     const streaks = new GiftStreaks();
     for (const total of [1, 9, 10, 11, 20, 21]) {
       const result = normalize('gift', {
@@ -239,17 +245,18 @@ describe('Düğün gerçek izleyici akışı', () => {
       giftDetails: { giftType: 1, diamondCount: 1 }, repeatCount: 21, repeatEnd: true });
     if (completed.ok) game.onEvent(completed.event);
     expect(state.thrones.damat.dancer).toBeNull();
-    expect(state.halaybasi.viewer.id).toBe('ayse');
+    expect(state.halaybasi).toBeNull();
+    expect(state.hud.announce).toHaveBeenCalledWith('Ayşe altın gönderdi; gelin rolü henüz boş.');
     expect(state.thrones.gelin.dancer).toBeNull();
     expect(state.dancers.size).toBe(1);
   });
 
   it('aynı anda tek rol: kaynana devralınır, eski sahibi halaya döner', () => {
     sendGift({ ...gift('ayse', 1, '9999'), giftName: 'Bouquet' });
-    sendGift(gift('ayse', 10, '5487'));
+    sendGift({ ...gift('ayse', 1, 'heart'), unitValue: 10 });
     expect(state.thrones.gelin.dancer).toBeNull();
     expect(state.kaynana.viewer.id).toBe('ayse');
-    sendGift(gift('fatma', 10, '5487'));
+    sendGift({ ...gift('fatma', 1, 'heart'), unitValue: 10 });
     expect(state.kaynana.viewer.id).toBe('fatma');
     expect(state.ring.order.map((d: any) => d.viewer.id)).toEqual(['ayse']);
     sendGift(gift('fatma', 1, '5658'));
@@ -260,7 +267,7 @@ describe('Düğün gerçek izleyici akışı', () => {
   it('kaynana yalnız izleyici rolü alınca halayı durdurur', () => {
     game.update(120);
     expect(state.kaynana).toBeNull();
-    sendGift(gift('fatma', 10, '5487'));
+    sendGift({ ...gift('fatma', 1, 'heart'), unitValue: 10 });
     game.update(111);
     game.update(3);
     expect(state.kaynanaState.state).toBe('scold');
@@ -306,22 +313,36 @@ describe('Düğün gerçek izleyici akışı', () => {
     expect(state.kaynana).toBeNull();
   });
 
-  it('tek Parmak Kalp kaynana yapmaz; gül ayrı kategoriden halaybaşı rolü verir', () => {
+  it('Parmak Kalp halaybaşı yapar; Gül gelinin rolünü bozmadan ona altın takar', () => {
     sendGift(gift('ayse', 1, '5487'));
     expect(state.kaynana).toBeNull();
+    expect(state.halaybasi.viewer.id).toBe('ayse');
     sendGift({ ...gift('ayse', 1, '9999'), giftName: 'Bouquet' });
     sendGift(gift('ayse', 1));
-    expect(state.thrones.gelin.dancer).toBeNull();
-    expect(state.halaybasi.viewer.id).toBe('ayse');
+    expect(state.thrones.gelin.dancer.viewer.id).toBe('ayse');
+    expect(state.halaybasi).toBeNull();
+    expect(state.coins).toHaveLength(1);
+    expect(state.coins[0].to).toBe(state.thrones.gelin.dancer);
+    expect(state.hud.announce).toHaveBeenCalledWith('ayse geline altın taktı!');
   });
 
-  it('GG eşikleri çalgıcıları atar, rol devri ve panelden boşaltma tek rol kuralını korur', () => {
-    sendGift(gift('ali', 5, '6064'));
-    sendGift(gift('veli', 10, '6064'));
-    expect(game.getAdminState().participants.find((p) => p.role === 'davulcu')?.viewer.id).toBe('ali');
+  it('kısa aralıkla gelen her Gül tekrar altın takar; hedef yalnız gelindir', () => {
+    game.onAdmin({ action: 'assign', person: { name: 'Gelin' }, role: 'gelin' });
+    game.onAdmin({ action: 'assign', person: { name: 'Damat' }, role: 'damat' });
+    game.onEvent(gift('ali', 1)); tick(1.3);
+    game.onEvent(gift('ali', 1)); tick(1.3);
+    expect(state.coins).toHaveLength(2);
+    expect(state.coins.every((c: any) => c.to === state.thrones.gelin.dancer)).toBe(true);
+  });
+
+  it('davulcu panelden, zurnacı Çay ile atanır; rol devri tek rol kuralını korur', () => {
+    game.onAdmin({ action: 'assign', person: { name: 'ali' }, role: 'davulcu' });
+    const aliId = 'manual:ali';
+    sendGift({ ...gift('veli', 1, 'real-tea'), giftName: 'Çay' });
+    expect(game.getAdminState().participants.find((p) => p.role === 'davulcu')?.viewer.id).toBe(aliId);
     expect(game.getAdminState().participants.find((p) => p.role === 'zurnaci')?.viewer.id).toBe('veli');
     expect(state.ring.order).toHaveLength(0);
-    game.onAdmin({ action: 'assign', person: { id: 'ali' }, role: 'zurnaci' });
+    game.onAdmin({ action: 'assign', person: { id: aliId }, role: 'zurnaci' });
     expect(state.musicians.davulcu).toBeNull();
     expect(state.ring.order.map((d: any) => d.viewer.id)).toEqual(['veli']);
     game.onAdmin({ action: 'clear-role', role: 'zurnaci' });
@@ -412,12 +433,24 @@ describe('Düğün gerçek izleyici akışı', () => {
   });
 });
 
-it('menü eşikleri aynı seri içindir; yeni seri tekrar halaybaşı olabilir', () => {
+it('gül yalnız takı, Parmak Kalp yalnız halaybaşı, GG yalnız para efektidir', () => {
   expect(MENU.filter((m) => m.giftId === '5655').map((m) => m.count)).toEqual([1]);
-  expect(momentFor(gift('a', 20))).toBe('mendil');
-  expect(momentFor(gift('a', 10))).toBe('mendil');
-  expect(momentFor(gift('a', 1))).toBe('mendil');
+  expect(momentFor(gift('a', 20))).toBe('ceyrek');
+  expect(momentFor(gift('a', 10))).toBe('ceyrek');
+  expect(momentFor(gift('a', 1))).toBe('ceyrek');
+  expect(momentFor(gift('a', 1, '5487'))).toBe('mendil');
+  expect(momentFor(gift('a', 10, '6064'))).toBe('para');
   expect(momentFor(gift('a', 1, '999'))).toBeNull();
+});
+
+it('normal Kalp 10 jeton olmalıdır; Parmak Kalp ve diğer kalplerle karışmaz', () => {
+  expect(momentFor({ ...gift('a', 1, 'real-heart'), giftName: 'Heart', unitValue: 10 })).toBe('kaynana');
+  expect(momentFor({ ...gift('a', 1, 'real-heart'), giftName: 'Kalp', unitValue: 10 })).toBe('kaynana');
+  expect(momentFor({ ...gift('a', 1, 'real-heart'), giftName: 'Heart', unitValue: 1 })).toBeNull();
+  expect(momentFor({ ...gift('a', 1, 'other'), giftName: 'Finger Heart', unitValue: 10 })).toBeNull();
+  expect(momentFor({ ...gift('a', 1, 'other'), giftName: 'Heart Me', unitValue: 10 })).toBeNull();
+  expect(momentFor({ ...gift('a', 1, 'other'), giftName: 'Team', unitValue: 1 })).toBeNull();
+  expect(momentFor({ ...gift('a', 1, 'real-tea'), giftName: 'Tea' })).toBe('zurnaci');
 });
 
 it('Parfüm damat, bilinmeyen kimlikli Bouquet ve Türkçe Buket gelin yapar', () => {

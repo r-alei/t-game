@@ -6,6 +6,7 @@ import type { GiftEvent } from '../../../../shared/events.ts';
 export type MomentId =
   | 'ortaya'   // ortada mendilli solo
   | 'ceyrek'   // çeyrek altın takılır, sunucu adını bağırır
+  | 'para'     // dekoratif oyun banknotları saçılır
   | 'mendil'   // halaybaşı ol
   | 'gelin'    // gelin ol
   | 'damat'    // damat ol
@@ -23,27 +24,32 @@ export interface MenuItem {
   moment: MomentId;
 }
 
-/** Yönetim eşlemeleri; seride erişilen en yüksek eşik tek an seçer. Yayında menü çizilmez. */
+/** Yönetim eşlemeleri; yayında menü çizilmez. */
 export const MENU: readonly MenuItem[] = [
   { giftId: '5879', count: 1, icon: '/gifts/doughnut.webp', label: 'ORTAYA ÇIK', moment: 'ortaya' },
-  { giftId: '5655', count: 1, icon: '/gifts/rose.webp', label: 'HALAYBAŞI', moment: 'mendil' },
-  { giftId: 'bouquet', giftName: 'bouquet', count: 1, icon: '/gifts/rose.webp', label: 'GELİN OL', moment: 'gelin' },
+  { giftId: '5655', count: 1, icon: '/gifts/rose.webp', label: 'GELİNE ALTIN', moment: 'ceyrek' },
+  { giftId: '5487', count: 1, icon: '/gifts/finger-heart.webp', label: 'HALAYBAŞI', moment: 'mendil' },
+  { giftId: 'bouquet', giftName: 'bouquet', count: 1, icon: '/gifts/unknown.svg', label: 'GELİN OL', moment: 'gelin' },
   { giftId: '5658', count: 1, icon: '/gifts/perfume.webp', label: 'DAMAT OL', moment: 'damat' },
-  { giftId: '6064', count: 5, icon: '/gifts/gg.webp', label: 'DAVULCU OL', moment: 'davulcu' },
-  { giftId: '6064', count: 10, icon: '/gifts/gg.webp', label: 'ZURNACI OL', moment: 'zurnaci' },
-  { giftId: '5487', count: 10, icon: '/gifts/finger-heart.webp', label: 'KAYNANA OL', moment: 'kaynana' },
+  { giftId: 'tea', giftName: 'tea', count: 1, icon: '/gifts/unknown.svg', label: 'ZURNACI', moment: 'zurnaci' },
+  { giftId: '6064', count: 1, icon: '/gifts/gg.webp', label: 'OYUN PARASI', moment: 'para' },
+  { giftId: 'heart', giftName: 'heart', count: 1, icon: '/gifts/unknown.svg', label: 'KAYNANA', moment: 'kaynana' },
   { giftId: '5585', count: 1, icon: '/gifts/confetti.webp', label: 'HAVAYA AT', moment: 'havaya' },
 ];
 
-/** Tek eşleme noktası; Buket için İngilizce ve Türkçe ad kabul edilir. */
+/** Doğrulanmış kimlik veya tanımlı hediye adı; iki Kalp türü birbirinden ayrılır. */
 export function giftMatches(
   rule: { giftId: string; giftName?: string },
-  event: { giftId: string; giftName?: string },
+  event: { giftId: string; giftName?: string; unitValue?: number },
 ): boolean {
+  if (rule.giftId === 'heart' && event.unitValue !== undefined && event.unitValue !== 10) return false;
   if (rule.giftId === event.giftId) return true;
   if (!rule.giftName) return false;
   const name = event.giftName?.toLowerCase() ?? '';
   const expected = rule.giftName.toLowerCase();
+  const canonical = name.normalize('NFKD').replace(/\p{M}/gu, '').replace(/ı/g, 'i').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  if (expected === 'tea') return ['tea', 'cay', 'turkish tea', 'turk cayi', 'tea cup'].includes(canonical);
+  if (expected === 'heart') return ['heart', 'kalp', 'normal kalp'].includes(canonical);
   return name.includes(expected) || (expected === 'bouquet' && name.includes('buket'));
 }
 

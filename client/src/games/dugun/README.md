@@ -48,28 +48,31 @@ Görseller `client/public/gifts/` içindedir. Varsayılan görsel, adet, etiket 
 
 | Hediye | Adet | Etki |
 |---|---:|---|
-| Gül | 1 | Halaybaşı olur, kırmızı mendili alır |
+| Parmak Kalp | 1 | Halaybaşı olur |
+| Gül | 1 | Geline oyun içi altın takılır, gönderenin adıyla bildirim çıkar |
+| Çay (ad ile) | 1 | Zurnacı olur |
+| GG | 1 | Dekoratif oyun banknotları saçılır; rol değiştirmez |
+| Normal Kalp (birim değeri 10 jeton) | 1 | Kaynana olur |
 | Buket (ad ile) | 1 | Gelin olur |
 | Parfüm (`5658`) | 1 | Damat olur |
-| GG | 5 | Davulcu olur |
-| GG | 10 | Zurnacı olur |
-| Parmak Kalp | 10 | Kaynana olur |
 | Konfeti | 1 | Damat varsa havaya attırır |
-| Donut | 1 | 12 saniyelik mendilli solo; önceki solo halaya döner |
+| Donut | 1 | 12 saniyelik mendilli solo |
 
-Adetler izleyici ve eşleşen hediye başına toplanır. Son artıştan 1,2 saniye sonra veya seri bitişinde ulaşılan en yüksek yeni eşik uygulanır; 30 saniyelik sessizlikte sayaç silinir. GG 5–9 davulcu, 10+ zurnacı; Parmak Kalp 10+ kaynana yapar. Gül yalnız halaybaşı yapar; 10/20 gül gelin veya damat yapmaz. Farklı hediye kategorisi yeni rol verebilir. Aynı hediyenin düşük eşiği mevcut yüksek rolü düşürmez.
+Davulcu sohbetten/panelden atanabilir; GG'nin eski 5/10 adetlik davulcu/zurnacı eşikleri kaldırılmıştır. Gül göndermek gelin/damat veya halaybaşı rolünü değiştirmez. Gelin henüz yoksa altının uygulanamadığı bildirimde açıkça belirtilir; damada yönlendirilmez. Aynı kişinin kısa aralıklarla gönderdiği yeni Güller ve GG'ler efekti yeniden oynatır. Görseldeki altın ve üzerinde OYUN yazan banknotlar yalnız animasyondur; gerçek para, bakiye veya kazanılabilir ödül değildir.
 
-Buket'in gerçek TikTok kimliği bilinmiyor. Geçici kural `giftId: 'bouquet', giftName: 'bouquet'` kullanır: kimlik eşleşir veya küçük harfe çevrilen hediye adı **bouquet** / **buket** içerirse gelin olur. Adla gelen olaylar da aynı sayaçta toplanır. Panelde **Buket (ad ile)** görünür; **Gerçek hediye kimliği** alanına sayısal kimlik yazıp Uygula'ya basınca ad eşleşmesi kapanır ve yalnız kimlik kullanılır. Geçici ikon rose.webp'dir; bilinen hediye kataloğuna Buket eklenmez. Sunucu her normalize hediye artışı için tek satır yazar: örnek (temsili kimlik) `[hediye] 9999 Bouquet x1`. İlk gerçek Buket geldiğinde bu satırdaki kimlik panelde kullanılabilir.
+Adetler izleyici ve eşleşen hediye başına toplanır. Son artıştan 1,2 saniye sonra veya seri bitişinde işlenir; 30 saniyelik sessizlikte sayaç silinir. Rol kilidi altın/para efektlerini engellemez, rol değişimlerini engeller.
+
+**Kimliği doğrulanacak hediyeler:** Buket, Çay ve normal Kalp için sayısal kimlik uydurulmaz. Buket adı bouquet/buket, Çay adı Tea/Çay/Turkish Tea, normal Kalp adı Heart/Kalp olarak tanınır. Kalp için olayın birim değeri ayrıca **10** olmalıdır. Finger Heart/Parmak Kalp veya Heart Me normal Kalp sayılmaz. İlk gerçek olayın sunucu kaydındaki kimliği panelde **Gerçek hediye kimliği** alanına girilince yalnız kimlik eşleşmesi kullanılır. Doğrulanmış görseli olmayan hediyede Gül yerine nötr temsili simge kullanılır; resmi ikon olduğu iddia edilmez.
 
 Bir izleyici aynı anda tek özel rol taşır. Yeni kişi rolü aldığında önceki sahibi halaya döner. Rol değiştirilince eski rol boş kalır; yerine yapay karakter konmaz. Menü dışındaki hediyeler göndereni sahneye katar, özel rol veya rastgele etki vermez.
 
 ## Kaynana
 
-Kaynana, eşlenmiş hediyeyi gönderen izleyiciyle veya panelden atamayla oluşur. Varsayılan eşik 10 Parmak Kalp'tir. Halkanın dışında dolaşır; 70–110 saniyede bir sahneye yürür ve halayı dört saniye durdurur. Ekranda replik gösterilir. Başka biri rolü devralırsa eski kaynana halaya döner. Kaynana başka rol alınca davranış durur. Otomatik müdahale kapalıyken panelden elle müdahale yapılabilir.
+Kaynana, eşlenmiş hediyeyi gönderen izleyiciyle veya panelden atamayla oluşur. Varsayılan hediye 10 jetonluk normal Kalp'ten 1 adettir. Halkanın dışında dolaşır; 70–110 saniyede bir sahneye yürür ve halayı dört saniye durdurur. Ekranda replik gösterilir. Başka biri rolü devralırsa eski kaynana halaya döner. Kaynana başka rol alınca davranış durur. Otomatik müdahale kapalıyken panelden elle müdahale yapılabilir.
 
 ## Davulcu ve zurnacı
 
-İkisi de yalnız gerçek izleyici veya yayıncının açık atamasıyla oluşur; sahne başında yapay çalgıcı yoktur. Eşiği karşılayan kişi enstrümanlı kıyafetiyle çalgıcı sahnesine geçer, tempoya bağlı çalma animasyonu oynar. Rol devralınırsa eski sahibi halaya döner. Yeni düğünde kaynana ve çalgıcılar kalır; **Sahneyi boşalt** onları da kaldırır. Gerçek davul-zurna ses kaydı henüz eklenmemiştir.
+İkisi de yalnız gerçek izleyici veya yayıncının açık atamasıyla oluşur; sahne başında yapay çalgıcı yoktur. Çay ile zurnacı olan veya panelden çalgıcı atanan kişi enstrümanlı kıyafetiyle çalgıcı sahnesine geçer, tempoya bağlı çalma animasyonu oynar. Rol devralınırsa eski sahibi halaya döner. Yeni düğünde kaynana ve çalgıcılar kalır; **Sahneyi boşalt** onları da kaldırır. Gerçek davul-zurna ses kaydı henüz eklenmemiştir.
 
 ## Tempo ve düğün döngüsü
 

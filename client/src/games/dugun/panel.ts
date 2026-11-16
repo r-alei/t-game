@@ -1,4 +1,4 @@
-import { DUGUN_ROLES, ROLE_LABELS, type DugunCommand, type DugunOption, type DugunRole, type DugunState } from '../../../../shared/dugun.ts';
+import { DUGUN_ROLES, ROLE_LABELS, GIFT_EFFECT_LABELS, NAMED_GIFTS, type DugunCommand, type DugunOption, type DugunRole, type DugunState } from '../../../../shared/dugun.ts';
 import type { LiveClient } from '../../net/live.ts';
 import type { CommentEvent, ControlCommand, Viewer } from '../../../../shared/events.ts';
 import { KNOWN_GIFTS } from '../../../../shared/gifts.ts';
@@ -43,7 +43,7 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
         <button id="dgLoadRoster" class="ghost">Kayıtlı kadroyu uygula</button></div>
       <p class="muted compact">Kayıt, özel rol sahiplerini ve elle eklenen kişileri bu tarayıcıda saklar. Uyguladığında mevcut sahneye eklenir.</p>
       <h3>Hediye ve adet eşlemeleri</h3>
-      <p class="muted compact">Her rolün hediyesini ve adedini buradan seç. Seri bitince ulaşılan en yüksek eşik tek rol verir. Tek Parmak Kalp kaynana yapmaz; varsayılan eşik 10'dur.</p>
+      <p class="muted compact">Parmak Kalp halaybaşı, Gül geline altın, Çay zurnacı, GG oyun parası, normal Kalp (10 jeton) kaynana. Adla tanınan hediyelerin gerçek kimliğini yayında doğrulayabilirsin.</p>
       <div id="dgGiftRules" class="gift-rules"></div>
       <div class="admin-columns"><div>
         <h3>Süre ve tempo</h3>
@@ -265,10 +265,10 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
       if (!inputs) {
         const form = document.createElement('form'); form.className = 'gift-rule';
         const title = document.createElement('strong');
-        title.textContent = rule.moment === 'mendil' ? 'Halaybaşı' : rule.moment === 'ortaya' ? 'Ortaya çık' : rule.moment === 'havaya' ? 'Damadı havaya at' : ROLE_LABELS[rule.moment];
+        title.textContent = GIFT_EFFECT_LABELS[rule.moment];
         const gift = document.createElement('select'); gift.setAttribute('aria-label', `${title.textContent} hediyesi`);
         for (const item of KNOWN_GIFTS) gift.add(new Option(item.name, item.id));
-        gift.add(new Option('Buket (ad ile)', 'bouquet'));
+        for (const [id, item] of Object.entries(NAMED_GIFTS)) gift.add(new Option(`${item.name} (ad ile)`, id));
         const customId = document.createElement('input'); customId.type = 'text'; customId.inputMode = 'numeric';
         customId.pattern = '[0-9]{1,30}'; customId.placeholder = 'Gerçek hediye kimliği';
         customId.setAttribute('aria-label', title.textContent + ' gerçek hediye kimliği');

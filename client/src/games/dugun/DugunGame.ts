@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import type { DugunCamera, DugunCommand, DugunRole, DugunState } from '../../../../shared/dugun.ts';
-import { GIFT_ICONS } from '../../../../shared/dugun.ts';
+import { GIFT_ICONS, NAMED_GIFTS } from '../../../../shared/dugun.ts';
 import type { GiftEvent, LiveEvent, Viewer } from '../../../../shared/events.ts';
 import type { Game, GameContext } from '../Game.ts';
 import { Director, type Pose, type Shot } from '../../engine/director.ts';
@@ -17,6 +17,7 @@ import { Confetti, Floaters } from '../../engine/particles.ts';
 import { Dancer, Ring, type Beat } from './dancers.ts';
 import { SPOTS, WeddingCar, World } from './world.ts';
 import { Hud } from './hud.ts';
+import { MoneyRain } from './money.ts';
 import { SCREEN } from '../../engine/layout.ts';
 import type { DayiCue } from '../../../../shared/dayi.ts';
 import { MENU, TEMPO, TIMING, giftMatches, momentFor, type MomentId } from './config.ts';
@@ -89,6 +90,7 @@ export class DugunGame implements Game {
   private director!: Director;
   private hud!: Hud;
   private confetti!: Confetti;
+  private money!: MoneyRain;
   private floaters!: Floaters;
   private ring!: Ring;
   private dancers = new Map<string, Dancer>();
@@ -134,6 +136,7 @@ export class DugunGame implements Game {
     this.solo = null;
     this.car = new WeddingCar(scene);
     this.confetti = new Confetti(scene);
+    this.money = new MoneyRain(scene);
     this.floaters = new Floaters(scene);
     this.ring = new Ring();
     this.dancers = new Map();
@@ -256,8 +259,9 @@ export class DugunGame implements Game {
     const { dancer: d } = this.join(e.viewer);
     d.touch(this.now, 12);
     // Tek adetlik solo, aynı kişinin kısa aralıkla gelen yeni hediyesinde de yenilenir.
-    const moment = momentFor(e, this.menu) ?? (this.menu.some((item) => item.moment === 'ortaya'
-      && giftMatches(item, e) && item.count === 1) ? 'ortaya' : null);
+    const repeatable = this.menu.find((item) => ['ortaya', 'ceyrek', 'para'].includes(item.moment)
+      && giftMatches(item, e) && e.count >= item.count);
+    const moment = momentFor(e, this.menu) ?? repeatable?.moment ?? null;
     const currentMoment = this.roleOf(d) === 'halaybasi' ? 'mendil' : this.roleOf(d);
     const currentRule = this.menu.find((item) => item.moment === currentMoment && giftMatches(item, e));
     const nextRule = this.menu.find((item) => item.moment === moment && giftMatches(item, e));
@@ -277,19 +281,24 @@ export class DugunGame implements Game {
     switch (moment) {
       case 'ortaya': this.takeSolo(d); break;
       case 'ceyrek': {
-        // Takı: çeyrek gelin ya da damada takılır (gerçek izleyici olana öncelik)
-        const target = this.takiTarget(d);
+        const target = this.thrones.gelin.dancer;
         if (!target) {
-          this.hud.announce(`${name} takı gönderdi! Gelin ve damat rolleri henüz boş.`);
+          this.hud.announce(`${name} altın gönderdi; gelin rolü henüz boş.`);
           break;
         }
-        const n = Math.min(e.count, 10);
-        for (let i = 0; i < n; i++) this.flyCoin(d, target, i * 0.12);
-        const who = target === this.thrones.gelin.dancer ? 'geline' : 'damada';
-        this.hud.announce(n > 1 ? `📢 ${name} ${who} ${n} çeyrek taktı!` : `📢 ${name} ${who} bir çeyrek taktı!`);
+        const n = e.count;
+        for (let i = 0; i < Math.min(n, 10); i++) this.flyCoin(d, target, i * 0.12);
+        this.hud.announce(n > 1 ? `${name} geline ${n} altın taktı!` : `${name} geline altın taktı!`);
+        this.onDayiCue?.('clap');
         if (this.director.pending < 2) this.director.push(this.coupleShot(2, 3.2));
         break;
       }
+      case 'para':
+        this.money.burst(d.headWorld(), Math.min(120, 18 * e.count));
+        this.hud.announce(`${name} oyun parası saçtı!`);
+        this.onDayiCue?.('cheer');
+        if (this.director.pending < 2) this.director.push(this.closeUp(d, 'oyun parası', 2, 3));
+        break;
       case 'mendil': this.takeLeader(d); break;
       case 'kaynana': this.takeKaynana(d); break;
       case 'davulcu':
@@ -493,12 +502,6 @@ export class DugunGame implements Game {
     const r = this.records.get(dancer.viewer.id) ?? { viewer: dancer.viewer, gelin: 0, damat: 0 };
     r[role] += this.now - since;
     this.records.set(dancer.viewer.id, r);
-  }
-
-  private takiTarget(giver: Dancer): Dancer | null {
-    const candidates = [this.thrones.gelin.dancer, this.thrones.damat.dancer]
-      .filter((d): d is Dancer => d !== null && d !== giver);
-    return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
   }
 
   private flyCoin(from: Dancer, to: Dancer, delay: number): void {
@@ -787,6 +790,7 @@ export class DugunGame implements Game {
     this.world.update(dt);
     this.car.update(dt);
     this.confetti.update(dt);
+    this.money.update(dt);
     this.floaters.update(dt);
     this.director.update(dt);
 
@@ -841,7 +845,7 @@ export class DugunGame implements Game {
       durationSeconds: this.durationSeconds, tempo: this.bpm,
       phase: this.carPhase ? 'ceremony' : 'wedding', musicPlaying: this.playing,
       options: { ...this.options }, camera: this.adminCamera, notice: this.adminNotice,
-      giftRules: this.menu.filter((item) => item.moment !== 'ceyrek').map((item) => ({
+      giftRules: this.menu.map((item) => ({
         giftId: item.giftId, giftName: item.giftName, count: item.count, moment: item.moment as DugunState['giftRules'][number]['moment'],
       })),
       paused: false, soundEnabled: false,
@@ -929,9 +933,9 @@ export class DugunGame implements Game {
         const item = this.menu.find((item) => item.moment === rule.moment);
         if (item) {
           item.giftId = rule.giftId; item.count = rule.count;
-          item.giftName = rule.giftId === 'bouquet' ? 'bouquet' : undefined;
+          item.giftName = NAMED_GIFTS[rule.giftId]?.match;
           this.giftTally.clear();
-          item.icon = `/gifts/${GIFT_ICONS[rule.giftId] ?? 'rose'}.webp`;
+          item.icon = GIFT_ICONS[rule.giftId] ? `/gifts/${GIFT_ICONS[rule.giftId]}.webp` : '/gifts/unknown.svg';
         }
         notice('Hediye menüsü ve eşlemesi güncellendi.');
         break;
@@ -976,6 +980,7 @@ export class DugunGame implements Game {
   }
 
   reset(): void {
+    this.money.dispose();
     this.world.dispose?.();
     this.hud.dispose();
     this.ctx.stage.clear();
@@ -983,6 +988,7 @@ export class DugunGame implements Game {
   }
 
   dispose(): void {
+    this.money.dispose();
     this.world.dispose?.();
     this.hud.dispose();
     this.ctx.stage.camera.clearViewOffset();
