@@ -1,7 +1,7 @@
 import type { DugunState } from '../../../../shared/dugun.ts';
 
 /** Ses yalnız yerelde analiz edilir; kayıt, hoparlöre yönlendirme veya ses aktarımı yoktur. */
-export class KahyaMicrophone {
+export class SpeakerMicrophone {
   enabled = false;
   threshold = 0.025;
   level = 0;

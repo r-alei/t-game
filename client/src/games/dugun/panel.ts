@@ -52,8 +52,8 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
         <p class="muted compact">Ses düğmesi mevcut efektleri açar; davul-zurna kaydı eklemez.</p>
         <p id="dgSoundState" class="muted compact">Ses kapalı</p>
       </div></div>
-      <h3>Kâhya mikrofonu</h3>
-      <label class="toggle"><input id="dgMicEnabled" type="checkbox">Kâhya mikrofonu açık</label>
+      <h3>Dayı mikrofonu</h3>
+      <label class="toggle"><input id="dgMicEnabled" type="checkbox">Dayı mikrofonu açık</label>
       <label>Konuşma eşiği (düşük değer daha hassas)<input id="dgMicThreshold" type="range" min="0.005" max="0.2" step="0.005" value="0.025"></label>
       <meter id="dgMicLevel" min="0" max="0.2" value="0" aria-label="Mikrofon ses seviyesi"></meter>
       <p id="dgMicStatus" class="muted compact" role="status">Mikrofon kapalı</p>
@@ -168,7 +168,7 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
   const optionLabels: Record<DugunOption, string> = {
     interactionsEnabled: 'İzleyici yorum ve hediyelerini işle', rolesLocked: 'Hediyelerle rol değişimini kilitle',
     kaynanaEnabled: 'Kaynananın otomatik müdahalesi', tempoFromLikes: 'Beğeniler tempoyu artırsın',
-    hudVisible: 'Yayın ekranındaki yazıları göster', namesVisible: 'Karakter isimlerini göster',
+    hudVisible: 'Yayın ekranındaki yazıları göster', namesVisible: 'Karakter isimlerini göster', dayiVisible: 'Dayıyı göster',
   };
   const checkboxes = new Map<DugunOption, HTMLInputElement>();
   const giftInputs = new Map<string, { gift: HTMLSelectElement; customId: HTMLInputElement; count: HTMLInputElement; dirty: boolean }>();

@@ -13,7 +13,7 @@ export const ROLE_LABELS: Record<DugunRole, string> = {
   guest: 'Halaycı', halaybasi: 'Halaybaşı', gelin: 'Gelin', damat: 'Damat', kaynana: 'Kaynana',
   davulcu: 'Davulcu', zurnaci: 'Zurnacı',
 };
-export const DUGUN_OPTIONS = ['interactionsEnabled', 'rolesLocked', 'kaynanaEnabled', 'tempoFromLikes', 'hudVisible', 'namesVisible'] as const;
+export const DUGUN_OPTIONS = ['interactionsEnabled', 'rolesLocked', 'kaynanaEnabled', 'tempoFromLikes', 'hudVisible', 'namesVisible', 'dayiVisible'] as const;
 export type DugunOption = typeof DUGUN_OPTIONS[number];
 export type DugunCamera = 'auto' | 'wide' | 'top' | 'couple' | 'person';
 export type DugunCommand =

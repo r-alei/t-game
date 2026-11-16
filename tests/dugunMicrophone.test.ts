@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { KahyaMicrophone } from '../client/src/games/dugun/microphone.ts';
+import { SpeakerMicrophone } from '../client/src/games/dugun/microphone.ts';
 
-describe('Kâhya mikrofonu', () => {
-  let mic: KahyaMicrophone;
+describe('Dayı mikrofonu', () => {
+  let mic: SpeakerMicrophone;
   let amplitude: number;
   let stop: ReturnType<typeof vi.fn>;
   let close: ReturnType<typeof vi.fn>;
@@ -21,7 +21,7 @@ describe('Kâhya mikrofonu', () => {
       createMediaStreamSource = () => ({ connect: vi.fn() });
       createAnalyser = () => ({ fftSize: 1024, getFloatTimeDomainData: (samples: Float32Array) => samples.fill(amplitude) });
     });
-    mic = new KahyaMicrophone();
+    mic = new SpeakerMicrophone();
   });
   afterEach(() => { mic.stop(); vi.unstubAllGlobals(); });
 

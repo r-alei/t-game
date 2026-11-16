@@ -1,10 +1,12 @@
 # Düğün Dernek
 
-## Kâhya ve bahçe düğünü
+## Dayı katmanı ve bahçe düğünü
 
-Kâhya yayıncının kalıcı figürüdür: yelek ve kasketle çalgıcıların yanında durur, etiketi **Kâhya**'dır. Katılımcı veya hediye rolü değildir; sıfırlamada yeniden kurulur. Yorumlara aralıklı dönüp el sallar; sessizlikte halaya bakar ve ara sıra alkışlar.
+**Düğün Dayısı**, yayıncının kalıcı 2B SVG katmanıdır. Kasketi, kalın siyah bıyığı, beyaz gömleği, koyu yeleği ve kırmızı mendiliyle belden yukarı görünür. Sahnedeki 3B figürlerden ve kameradan bağımsızdır; katılımcı veya hediye rolü değildir. 1080×1920 mantıksal ekranda sol üstü **(40, 840)**, boyutu **330×400 px**, alt sınırı **1240 px** olur; y=1260'taki yorum akışına girmez. Duyuru ve ipucu x=390'dan başlar. Panelde **Dayıyı göster** varsayılan açıktır, yazı görünürlüğünden bağımsız kapanır. Sıfırlamada katman yeniden kurulur, kapanışta DOM'dan kaldırılır.
 
-Panelde **Kâhya mikrofonu** anahtarı ve **Konuşma eşiği** kaydırıcısı vardır. Anahtarı açınca mikrofon izni oyun ekranında alınır. RMS ses seviyesi yerel Web Audio analizinden geçer; histerezisli gürültü kapısı, 140 ms bekleme ve yumuşatma ağız, kollar ve başı hareket ettirir. Düşük eşik daha hassastır; fan sesiyle hareket olursa eşiği yükselt. Ham ses kaydedilmez, hoparlöre veya sunucuya gönderilmez. Panel yalnız seviye ve durumu mevcut yönetim akışından yaklaşık saniyede bir alır. Efekt sesi düğmeleri mikrofonu etkilemez. Mikrofon kapatılınca, oyun sıfırlanınca veya kapatılınca ses izleri ve AudioContext kapatılır.
+Animasyon `DugunGame.update(dt)` üzerinden ilerler; ayrı animasyon döngüsü yoktur. `microphone.speech` (0–1) ağız açıklığını sürekli değiştirir; baş, bıyık ve mendilli el konuşmaya eşlik eder. Sessizlikte hafif nefes alır, 3–6 saniyede bir göz kırpar ve aralıklı mendil sallar. Halay kopunca şaşırır; yeni gelin/damat ve ortaya çıkan izleyicide kısa bir mendil jesti yapar. Yayıncının yerine konuşmaz veya hediye çağrısı göstermez. SVG bir kez oluşturulur; karelerde yalnız öznitelikler güncellenir.
+
+Panelde **Dayı mikrofonu** anahtarı ve **Konuşma eşiği** kaydırıcısı vardır. Anahtarı açınca mikrofon izni oyun ekranında alınır. RMS ses seviyesi yerel Web Audio analizinden geçer; histerezisli gürültü kapısı, 140 ms bekleme ve yumuşatma ağız, mendilli el ve başı hareket ettirir. Düşük eşik daha hassastır; fan sesiyle hareket olursa eşiği yükselt. Ham ses kaydedilmez, hoparlöre veya sunucuya gönderilmez. Panel yalnız seviye ve durumu mevcut yönetim akışından yaklaşık saniyede bir alır. Efekt sesi düğmeleri mikrofonu etkilemez. Mikrofon kapatılınca, oyun sıfırlanınca veya kapatılınca ses izleri ve AudioContext kapatılır. Dayı'yı gizlemek mikrofon ayarını değiştirmez; ses girişini kapatmak için mikrofon anahtarını kapat.
 
 İzin/cihaz hatasında **Mikrofon yok** görünür ve karakter sessiz kalır; oyun sürer. Giriş cihazını ve izni kontrol edip anahtarı kapat/aç. Normal tarayıcı ses bağlamı için yerel oyun ekranına tıklama gerektirebilir; Electron yayın penceresi ses bağlamını otomatik başlatır. Electron yalnız HTTP(S) `localhost` / `127.0.0.1` kökeninden ses girişi iznine izin verir.
 
@@ -32,7 +34,7 @@ Panel ayrıca hediye/adet eşlemelerini, düğün ve kalan süreyi, tempoyu, izl
 
 ## Başlangıç ve katılım
 
-- İzleyici kadrosu boş başlar. Kâhya her zaman vardır; yapay misafir, gelin, damat, kaynana veya çalgıcı üretilmez.
+- İzleyici kadrosu boş başlar. Dayı katmanı varsayılan görünürdür; yapay misafir, gelin, damat, kaynana veya çalgıcı üretilmez.
 - Yorum yazan veya hediye gönderen gerçek izleyici sahneye katılır. Aynı kişi ikinci kez karakter oluşturmaz.
 - Halayda katılımcı sınırı ve kapasite nedeniyle izleyici çıkarma yoktur. Halka kişi sayısıyla genişler; gerçek performans bilgisayarın gücüne bağlıdır.
 - Yorumlar karakterin üzerinde balon olur; aynı anda en fazla üç balon gösterilir.
@@ -78,6 +80,6 @@ Kaynana, eşlenmiş hediyeyi gönderen izleyiciyle veya panelden atamayla oluşu
 
 ## Dosyalar ve doğrulama
 
-`DugunGame.ts`: roller, solo, olaylar ve düğün döngüsü. `config.ts`: eşlemeler ve süreler. `dancers.ts`: figürler ve halay halkası. `kahya.ts` / `microphone.ts`: yayıncı karakteri ve ses analizi. `world.ts` / `garden.ts`: bahçe ve araba. `hud.ts`: başlık, süre ve sonuç duyuruları. Roller sahnedeki karakterler ve değişim duyurularıyla anlaşılır.
+`DugunGame.ts`: roller, solo, olaylar ve düğün döngüsü. `config.ts`: eşlemeler ve süreler. `dancers.ts`: figürler ve halay halkası. `dayi.ts` / `microphone.ts`: 2B yayıncı katmanı, saf poz hesabı ve yerel ses analizi (`SpeakerMicrophone`). `world.ts` / `garden.ts`: bahçe ve araba. `hud.ts`: başlık, süre ve sonuç duyuruları. Roller sahnedeki karakterler ve değişim duyurularıyla anlaşılır. `tests/dugunDayi.test.ts` konuşma, göz kırpma, jest, görünürlük ve kaldırmayı doğrular; yeni DOM paketi gerektirmez.
 
 `npm test`, `npm run typecheck`, `npm run build` ile kontrol edilir. `tests/dugun.test.ts` boş başlangıcı, bin katılımcıyı, Parfüm/Buket eşlemelerini, gülün yalnız halaybaşı olmasını, solo hedefini ve kamerasını, kaynana devrini ve finalde rollerin korunmasını denetler. Hediye kimlikleri gerçek TikTok yayınında ayrıca doğrulanmalıdır.
