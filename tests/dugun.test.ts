@@ -5,10 +5,6 @@ import { GiftStreaks, normalize, normalizeGiftCompletion } from '../server/norma
 import { MENU, momentFor } from '../client/src/games/dugun/config.ts';
 import type { GameContext } from '../client/src/games/Game.ts';
 
-vi.mock('../client/src/games/dugun/dayi.ts', () => ({
-  Dayi: class { react = vi.fn(); setVisible = vi.fn(); update = vi.fn(); dispose = vi.fn(); },
-}));
-
 vi.mock('../client/src/engine/particles.ts', () => ({
   Confetti: class { burst = vi.fn(); update = vi.fn(); },
   Floaters: class { spawn = vi.fn(); update = vi.fn(); },
@@ -75,8 +71,9 @@ describe('Düğün gerçek izleyici akışı', () => {
     game = new DugunGame();
     game.start({
       stage: { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
-        renderer: {}, clear: vi.fn() }, hud: {}, banner: { show: vi.fn(), setLeftInset: vi.fn() },
+        renderer: {}, clear: vi.fn() }, hud: {}, banner: { show: vi.fn() },
     } as unknown as GameContext);
+    game.onDayiCue = vi.fn();
     state = game;
   });
   /** Hediye gönderir ve sayacın oturmasını bekler (sonraki hediye ayrı sayılır) */
@@ -93,7 +90,7 @@ describe('Düğün gerçek izleyici akışı', () => {
   it('Donut tek kişiyi ortaya çıkarır, ikinci Donut eskisini halaya döndürür; 12 sn sonra solo biter', () => {
     expect(momentFor(gift('ayse', 1, '5879'))).toBe('ortaya');
     sendGift(gift('ayse', 1, '5879'));
-    expect(state.dayi.react).toHaveBeenLastCalledWith('solo');
+    expect(game.onDayiCue).toHaveBeenLastCalledWith('clap');
     const first = state.dancers.get('ayse');
     expect(state.solo.dancer).toBe(first);
     expect(state.ring.has(first)).toBe(false);
@@ -156,33 +153,21 @@ describe('Düğün gerçek izleyici akışı', () => {
     sendGift(gift('ali', 2, '5658'));
     expect(state.solo.dancer.viewer.id).toBe('ali');
     expect(game.getAdminState().participants.map((p) => p.viewer.id)).toEqual(['ayse', 'ali']);
-    expect(game.getAdminState().microphone?.status).toBe('off');
+    expect(game.getAdminState()).not.toHaveProperty('microphone');
   });
 
-  it('Dayı varsayılan görünür; panel, konuşma, jest ve yaşam döngüsü katmana bağlanır', () => {
-    expect(game.getAdminState().options.dayiVisible).toBe(true);
-    game.onAdmin({ action: 'set-option', option: 'dayiVisible', value: false });
-    expect(game.getAdminState().options.dayiVisible).toBe(false);
-    expect(state.dayi.setVisible).toHaveBeenLastCalledWith(false);
-    game.onAdmin({ action: 'set-option', option: 'hudVisible', value: false });
-    game.onAdmin({ action: 'set-option', option: 'dayiVisible', value: true });
-    expect(state.dayi.setVisible).toHaveBeenLastCalledWith(true);
-    expect(game.getAdminState().options.hudVisible).toBe(false);
-    state.microphone.speech = 0.75;
-    game.update(1 / 60);
-    expect(state.dayi.update).toHaveBeenLastCalledWith(1 / 60, 0.75);
+  it('oyun yalnız jest bildirir; sıfırlama ayrı ekranı etkilemez', () => {
+    expect(state).not.toHaveProperty('dayi');
+    expect(state).not.toHaveProperty('microphone');
     game.onAdmin({ action: 'assign', person: { name: 'Ayşe' }, role: 'gelin' });
-    expect(state.dayi.react).toHaveBeenLastCalledWith('celebrate');
+    expect(game.onDayiCue).toHaveBeenLastCalledWith('cheer');
     game.onAdmin({ action: 'effect', effect: 'break-halay' });
-    expect(state.dayi.react).toHaveBeenLastCalledWith('surprise');
-    const oldDayi = state.dayi;
+    expect(game.onDayiCue).toHaveBeenLastCalledWith('shock');
+    const callback = game.onDayiCue;
     game.reset();
-    expect(oldDayi.dispose).toHaveBeenCalledOnce();
-    expect(game.getAdminState().options.dayiVisible).toBe(true);
-    const currentDayi = state.dayi;
+    expect(game.onDayiCue).toBe(callback);
+    expect(game.getAdminState().options).not.toHaveProperty('dayiVisible');
     game.dispose();
-    expect(currentDayi.dispose).toHaveBeenCalledOnce();
-    expect(state.ctx.banner.setLeftInset).toHaveBeenLastCalledWith(0);
   });
 
   it('GG seri bitişi beklenmeden rol verilir; kısa arayla gelen ayrı seriler toplanır', () => {

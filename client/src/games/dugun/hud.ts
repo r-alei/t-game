@@ -30,16 +30,16 @@ const css = /* css */ `
 @keyframes dg-tick { 0% { transform:scale(1.5); opacity:1 } 80% { opacity:.9 } 100% { transform:scale(1); opacity:0 } }
 .dg-count-label { position:absolute; left:0; right:150px; top:560px; text-align:center;
   font:900 44px/1 'Segoe UI',sans-serif; color:#fff; text-shadow:0 3px 0 #9a1020, 0 4px 12px rgba(0,0,0,.6); display:none; }
-/* Sol alt 330×400 alan Dayı için ayrılır; yazılar x=390'dan başlar.
+/* Duyurular güvenli alanı kullanır.
    Duyuru, motorun alttaki ad bandının (SAFE alt − 215) üstünde biter; uzun ad sığmazsa yukarı doğru
    ikinci satıra iner, kesilmez */
-.dg-announce { position:absolute; left:${SAFE.x + 350}px; width:${SAFE.w - 350}px; bottom:${SCREEN.height - (SAFE.y + SAFE.h - 228)}px; text-align:center; pointer-events:none; }
+.dg-announce { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; bottom:${SCREEN.height - (SAFE.y + SAFE.h - 228)}px; text-align:center; pointer-events:none; }
 .dg-announce span { display:inline-block; padding:12px 26px; border-radius:30px; background:rgba(255,248,220,.95);
   font:900 38px/1.1 'Segoe UI',sans-serif; color:#8a5a00; box-shadow:0 6px 18px rgba(0,0,0,.3); opacity:0;
   max-width:100%; box-sizing:border-box; overflow-wrap:anywhere; }
 .dg-announce span.show { animation: dg-ann 2.2s ease-out forwards; }
 @keyframes dg-ann { 0% { transform:scale(.6); opacity:0 } 12% { transform:scale(1.08); opacity:1 } 20% { transform:scale(1) } 85% { opacity:1 } 100% { opacity:0 } }
-.dg-cta { position:absolute; left:${SAFE.x + 350}px; width:${SAFE.w - 350}px; top:${SAFE.y + SAFE.h - 66}px; text-align:center; }
+.dg-cta { position:absolute; left:${SAFE.x}px; width:${SAFE.w}px; top:${SAFE.y + SAFE.h - 66}px; text-align:center; }
 .dg-cta span { display:inline-block; padding:12px 18px; border-radius:40px; background:rgba(120,10,30,.78);
   border:2px solid rgba(255,210,94,.85); font:800 28px 'Segoe UI',sans-serif; color:#fff; }
 .dg-cta b { color:#ffd25e; }

@@ -41,6 +41,7 @@ function publishAdminState(): void {
   live.sendNow({ kind: 'dugun-state', state });
 }
 if (adminGame) {
+  adminGame.onDayiCue = (cue) => { live.sendNow({ kind: 'dayi-cue', cue }); };
   live.onOpen(() => { live.sendNow({ kind: 'dugun-register' }); publishAdminState(); });
   window.setInterval(publishAdminState, 1000);
 }

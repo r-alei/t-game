@@ -39,14 +39,6 @@ export class Banner {
     if (!this.busy) void this.next();
   }
 
-  /** Oyunun sol alt yayıncı katmanına yatay yer ayırır. */
-  setLeftInset(inset: number): void {
-    this.el.style.left = `${SAFE.x + inset}px`;
-    this.el.style.width = `${SAFE.w - inset}px`;
-    this.el.style.boxSizing = inset ? 'border-box' : '';
-    this.el.style.overflowWrap = inset ? 'anywhere' : '';
-  }
-
   private async next(): Promise<void> {
     const item = this.queue.shift();
     if (!item) return void (this.busy = false);

@@ -73,9 +73,6 @@ describe('düğün yönetim bağlantısı', () => {
 });
 
 it('yönetim komutları değer aralığı, boş kişi ve geçersiz rolleri reddeder', () => {
-  expect(parseDugunCommand({ action: 'set-microphone', enabled: true, threshold: 0.025 })).toEqual({ action: 'set-microphone', enabled: true, threshold: 0.025 });
-  expect(parseDugunCommand({ action: 'set-microphone', enabled: true, threshold: NaN })).toBeNull();
-  expect(parseDugunCommand({ action: 'set-microphone', enabled: true, threshold: 0 })).toBeNull();
   expect(parseDugunCommand({ action: 'set-gift', rule: { moment: 'ortaya', giftId: '5879', count: 1 } })).not.toBeNull();
   expect(parseDugunCommand({ action: 'assign', person: { name: 'X' }, role: 'dayi' })).toBeNull();
   expect(parseDugunCommand({ action: 'set-time', value: Infinity })).toBeNull();

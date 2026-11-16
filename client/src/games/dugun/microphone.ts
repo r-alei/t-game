@@ -1,4 +1,4 @@
-import type { DugunState } from '../../../../shared/dugun.ts';
+import type { DayiState } from '../../../../shared/dayi.ts';
 
 /** Ses yalnız yerelde analiz edilir; kayıt, hoparlöre yönlendirme veya ses aktarımı yoktur. */
 export class SpeakerMicrophone {
@@ -6,7 +6,7 @@ export class SpeakerMicrophone {
   threshold = 0.025;
   level = 0;
   speech = 0;
-  status: NonNullable<DugunState['microphone']>['status'] = 'off';
+  status: DayiState['status'] = 'off';
   private context: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private analyser: AnalyserNode | null = null;
@@ -78,7 +78,7 @@ export class SpeakerMicrophone {
     this.status = 'off';
   }
 
-  getState(): NonNullable<DugunState['microphone']> {
+  getState(): DayiState {
     return { enabled: this.enabled, threshold: this.threshold, level: this.level, status: this.status };
   }
 }

@@ -1,7 +1,3 @@
-import { SAFE } from '../../engine/layout.ts';
-
-/** Animasyon payı dahil sınır; TikTok yorumları y=1260'ta başlar. */
-export const DAYI_BOUNDS = { x: SAFE.x, y: SAFE.y + SAFE.h - 400, w: 330, h: 400 } as const;
 export type DayiReaction = 'surprise' | 'celebrate' | 'solo';
 
 /** DOM'dan bağımsız poz hesabı; sessizlik ağzı tamamen kapatır. */
@@ -21,7 +17,7 @@ export function dayiPose(time: number, speech: number, blink: number, reaction: 
   };
 }
 
-/** Kalıcı yayıncı katmanı; sahneye, katılımcılara veya hediye rollerine eklenmez. */
+/** Verilen kabı dolduran, oyun yerleşiminden bağımsız yayıncı bileşeni. */
 export class Dayi {
   private readonly root: HTMLDivElement;
   private readonly body: SVGGElement;
@@ -41,13 +37,11 @@ export class Dayi {
     this.root = document.createElement('div');
     this.root.className = 'dg-dayi';
     Object.assign(this.root.style, {
-      position: 'absolute', left: `${DAYI_BOUNDS.x}px`, top: `${DAYI_BOUNDS.y}px`,
-      width: `${DAYI_BOUNDS.w}px`, height: `${DAYI_BOUNDS.h}px`, pointerEvents: 'none',
-      overflow: 'hidden', zIndex: '2',
+      width: '100%', height: '100%', pointerEvents: 'none',
     });
     // Sabit çizim yalnız kurulumda oluşturulur; karelerde sadece öznitelikler değişir.
-    this.root.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 400" width="330" height="400" role="img" aria-label="Düğün Dayısı">
-      <g data-part="body" stroke="#342c30" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    this.root.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 420" width="100%" height="100%" role="img" aria-label="Düğün Dayısı">
+      <g transform="translate(20 10)"><g data-part="body" stroke="#342c30" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <path d="M55 389 Q48 271 97 252 L213 252 Q255 280 257 389Z" fill="#fff8e9"/>
         <path d="M97 252 L137 273 L150 389 H72 L76 282Z M213 252 L177 273 L163 389 H239 L235 282Z" fill="#343e4a"/>
         <path d="M134 230 H178 V265 L156 285 L134 265Z" fill="#eeb58e"/>
@@ -78,7 +72,7 @@ export class Dayi {
           <path d="M280 205 Q290 175 285 152 M290 187 L310 181" fill="none" stroke="#a82036" stroke-width="2"/>
         </g>
       </g>
-    </svg>`;
+    </g></svg>`;
     const part = <T extends SVGElement>(name: string) => this.root.querySelector<T>(`[data-part="${name}"]`)!;
     this.body = part('body'); this.head = part('head'); this.eyes = part('eyes');
     this.brows = part('brows'); this.mouth = part('mouth'); this.moustache = part('moustache'); this.arm = part('arm');

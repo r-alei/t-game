@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Dayi, DAYI_BOUNDS, dayiPose } from '../client/src/games/dugun/dayi.ts';
-import { COVERED, SAFE } from '../client/src/engine/layout.ts';
+import { Dayi, dayiPose } from '../client/src/games/dugun/dayi.ts';
 import { parseDugunCommand } from '../shared/dugun.ts';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -27,12 +26,8 @@ describe('Düğün Dayısı', () => {
     }
   });
 
-  it('güvenli alanın sol altında, yorumlardan önce biter; panel seçeneği kabul edilir', () => {
-    expect(DAYI_BOUNDS.x).toBe(SAFE.x);
-    expect(DAYI_BOUNDS.y + DAYI_BOUNDS.h).toBeLessThanOrEqual(SAFE.y + SAFE.h);
-    expect(DAYI_BOUNDS.y + DAYI_BOUNDS.h).toBeLessThan(COVERED[1].y);
-    expect(parseDugunCommand({ action: 'set-option', option: 'dayiVisible', value: false }))
-      .toEqual({ action: 'set-option', option: 'dayiVisible', value: false });
+  it('oyundaki eski dayı görünürlük seçeneği artık kabul edilmez', () => {
+    expect(parseDugunCommand({ action: 'set-option', option: 'dayiVisible', value: false })).toBeNull();
   });
 
   it('bir kez çizilir, güncelleme öznitelik kullanır; gizlenir ve dispose ile kaldırılır', () => {
@@ -52,6 +47,8 @@ describe('Düğün Dayısı', () => {
     const dayi = new Dayi(host as unknown as HTMLElement);
     const drawing = root.innerHTML;
     const mouth = parts.get('[data-part="mouth"]')!;
+    expect(root.style).toMatchObject({ width: '100%', height: '100%' });
+    expect(root.style).not.toHaveProperty('left');
     expect(host.append).toHaveBeenCalledWith(root);
     expect(mouth.setAttribute).toHaveBeenLastCalledWith('ry', '0');
     dayi.update(1 / 60, 1);

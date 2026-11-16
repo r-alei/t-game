@@ -12,6 +12,7 @@ import type { ClientMessage, ConnectionStatus, LiveEvent, ServerMessage } from '
 import { Dedupe } from './dedupe.ts';
 import { TikTokSource } from './sources/tiktok.ts';
 import { crowd, simulate } from './sources/simulator.ts';
+import { DayiControl } from './dayiControl.ts';
 import { DugunControl } from './dugunControl.ts';
 
 // .env varsa oku (EULER_API_KEY gibi gizli değerler buraya yazılır, git'e girmez)
@@ -30,6 +31,7 @@ const root = process.cwd();
 const clients = new Set<WebSocket>();
 const dedupe = new Dedupe();
 const dugunControl = new DugunControl();
+const dayiControl = new DayiControl(broadcast);
 let status: ConnectionStatus = { source: 'none', state: 'idle', username: '', message: 'Bağlı değil' };
 
 function broadcast(msg: ServerMessage) {
@@ -53,6 +55,7 @@ const tiktok = new TikTokSource({ onEvent: publishEvent, onStatus: setStatus });
 let stopCrowd: (() => void) | null = null;
 
 function handle(msg: ClientMessage, ws: WebSocket) {
+  if (msg.kind.startsWith('dayi-')) { dayiControl.handle(ws, msg); return; }
   if (msg.kind.startsWith('dugun-')) { dugunControl.handle(ws, msg); return; }
   switch (msg.kind) {
     case 'connect':
@@ -89,6 +92,7 @@ if (isProd) {
   server.on('request', async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
     let path = url.pathname === '/' ? '/index.html' : url.pathname;
+    if (path === '/dayi') path = '/dayi.html';
     if (path === '/panel') path = '/panel.html';
     const file = normPath(join(dist, path));
     if (!file.startsWith(dist)) return void res.writeHead(403).end();
@@ -108,6 +112,7 @@ if (isProd) {
   });
   server.on('request', (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
+    if (url.pathname === '/dayi') req.url = `/dayi.html${url.search}`;
     if (url.pathname === '/panel') req.url = `/panel.html${url.search}`;
     vite.middlewares(req, res);
   });
@@ -122,6 +127,7 @@ server.on('upgrade', (req, socket, head) => {
 
 wss.on('connection', (ws) => {
   clients.add(ws);
+  ws.send(JSON.stringify(dayiControl.snapshot()));
   ws.send(JSON.stringify({ kind: 'status', status } satisfies ServerMessage));
   ws.on('message', (data) => {
     try {
@@ -130,7 +136,7 @@ wss.on('connection', (ws) => {
       console.warn('[ws] geçersiz mesaj', err);
     }
   });
-  ws.on('close', () => { clients.delete(ws); dugunControl.close(ws); });
+  ws.on('close', () => { clients.delete(ws); dugunControl.close(ws); dayiControl.close(ws); });
 });
 
 server.listen(PORT, HOST, () => {

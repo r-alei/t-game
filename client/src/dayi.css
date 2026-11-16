@@ -1,0 +1,16 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+body { background: #422f49; }
+#stage { position: relative; width: 100%; height: 100%; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 110%, #b57751, transparent 65%), linear-gradient(#353650, #80566a 64%, #bd895c); }
+.decor { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Fon pencereyi doldurur; mantıksal sahne kesilmeden, oranını koruyarak sığar. */
+#composition { position: absolute; width: 1080px; height: 608px; left: 50%; top: 50%; transform-origin: center; }
+#character { position: absolute; width: 525px; height: 580px; left: 277.5px; top: 0; }
+#name { position: absolute; bottom: 17px; left: 50%; transform: translateX(-50%); max-width: 900px;
+  padding: 8px 30px; border-radius: 9px; color: #fff5da; background: #3e2939;
+  border: 1px solid #d7ad6e; font: 600 23px/1.2 'Segoe UI', sans-serif;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+body[data-bg="green"], body[data-bg="green"] #stage { background: #00b140; }
+body[data-bg="black"], body[data-bg="black"] #stage { background: #000; }
+body[data-bg] .decor { display: none; }

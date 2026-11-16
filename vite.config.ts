@@ -3,14 +3,15 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   root: 'client',
-  publicDir: resolve(__dirname, 'client/public'),
+  publicDir: resolve(import.meta.dirname, 'client/public'),
   build: {
-    outDir: resolve(__dirname, 'dist'),
+    outDir: resolve(import.meta.dirname, 'dist'),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        index: resolve(__dirname, 'client/index.html'),
-        panel: resolve(__dirname, 'client/panel.html'),
+        index: resolve(import.meta.dirname, 'client/index.html'),
+        dayi: resolve(import.meta.dirname, 'client/dayi.html'),
+        panel: resolve(import.meta.dirname, 'client/panel.html'),
       },
     },
   },

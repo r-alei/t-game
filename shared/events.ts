@@ -4,6 +4,7 @@
  * oyun kodu TikTok kütüphanesinin ham verisini hiç görmez.
  */
 
+import type { DayiCommand, DayiCue, DayiState } from './dayi.ts';
 import type { DugunCommand, DugunState } from './dugun.ts';
 
 export interface Viewer {
@@ -69,6 +70,9 @@ export interface ConnectionStatus {
 
 /** Sunucu → istemci mesajları (WebSocket) */
 export type ServerMessage =
+  | { kind: 'dayi-command'; command: DayiCommand }
+  | { kind: 'dayi-cue'; cue: DayiCue }
+  | { kind: 'dayi-state'; state: DayiState | null }
   | { kind: 'event'; event: LiveEvent }
   | { kind: 'status'; status: ConnectionStatus }
   | { kind: 'control'; command: ControlCommand }
@@ -79,6 +83,9 @@ export type ServerMessage =
 
 /** Panel → sunucu mesajları (WebSocket) */
 export type ClientMessage =
+  | { kind: 'dayi-command'; command: DayiCommand }
+  | { kind: 'dayi-cue'; cue: DayiCue }
+  | { kind: 'dayi-state'; state: DayiState }
   | { kind: 'connect'; username: string }
   | { kind: 'disconnect' }
   | { kind: 'simulate'; event: SimulateRequest }

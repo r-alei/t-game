@@ -49,6 +49,8 @@ start "Canli Oyun SUNUCU - yayin boyunca acik kalsin" cmd /k "npm start"
 rem Oyun ekrani: cercevesiz, tam 9:16 yayin penceresi.
 rem LIVE Studio'da "Pencere yakalama" ile "Canli Oyun - Yayin Ekrani" penceresini sec.
 rem Sunucu hazir olana kadar pencere kendisi tekrar dener. Esc ile kapanir.
+set "DAYI_URL="
+if /i "%OYUN%"=="dugun" set "DAYI_URL=http://127.0.0.1:4300/dayi"
 set "OYUN_URL=http://127.0.0.1:4300/?game=%OYUN%"
 start "" "node_modules\electron\dist\electron.exe" desktop\main.cjs
 

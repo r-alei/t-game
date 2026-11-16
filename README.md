@@ -4,7 +4,7 @@ TikTok LIVE için three.js ile yazılmış etkileşimli yayın oyunu altyapısı
 
 İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [client/src/games/vapur/README.md](client/src/games/vapur/README.md).
 
-**Düğün Dernek** bahçe düğünü: izleyici kadrosu boş başlar, yayıncının kalıcı **Düğün Dayısı** sol alttaki büyük 2B SVG katmanında mikrofon sesine tepki verir. Panelden gösterilip gizlenir; mikrofon izni oyun ekranında alınır. Seri sonunda Gül ×1 halaybaşı, Buket ×1 gelin (ad eşleşmesi), Parfüm (`5658`) ×1 damat; GG ×5 davulcu, GG ×10 zurnacı; Parmak Kalp ×10 kaynana yapar. Donut ×1, 12 saniyelik mendilli solo başlatır. Seri sırasında ara roller verilmez. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
+**Düğün Dernek** bahçe düğünü: izleyici kadrosu boş başlar, yayıncının **Düğün Dayısı** ayrı yatay pencerede mikrofon sesine tepki verir. Mikrofon izni yalnız dayı ekranında alınır. Seri sonunda Gül ×1 halaybaşı, Buket ×1 gelin (ad eşleşmesi), Parfüm (`5658`) ×1 damat; GG ×5 davulcu, GG ×10 zurnacı; Parmak Kalp ×10 kaynana yapar. Donut ×1, 12 saniyelik mendilli solo başlatır. Seri sırasında ara roller verilmez. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
 
 ## Başka bilgisayarda kurulum ve birlikte geliştirme
 
@@ -30,6 +30,12 @@ git switch -c ozellik/degisiklik-adi
 ```
 
 Göndermeden önce `npm test`, `npm run typecheck` ve `npm run build` çalıştırın. `node_modules/` ve `dist/` yerelde üretilir. Gerektiğinde `EULER_API_KEY` proje kökündeki `.env` dosyasında tutulur; bu dosya Git'e dahil edilmez.
+
+## Dayı ekranı
+
+Düğün başlatıcısı oyunla birlikte 1280×720, boyutu değiştirilebilir **Canlı Oyun · Dayı Ekranı** penceresini açar. Adres: `http://127.0.0.1:4300/dayi`. LIVE Studio'da **Pencere yakalama** ile **Canlı Oyun · Dayı Ekranı** penceresini ekle ve oyunun üstüne bant olarak yerleştir. `?bg=green` ile krom anahtar (#00b140), `?bg=black` ile siyah fon; `?ad=Mehmet` ile isim değişir. Parametreler birleşebilir: `/dayi?bg=green&ad=Mehmet`. Varsayılan sıcak düğün fonudur; pencere opaktır. Sürükleyerek taşı, Esc ile kapat. Diğer oyunlarda dayı penceresi açılmaz.
+
+Mikrofon varsayılan açıktır; izin ilk açılışta dayı ekranında istenir. Panelde aç/kapa ve eşik ayarlanır, ayarlar dayı ekranının localStorage'ında hatırlanır. Panel → sunucu → dayı: `dayi-command`; dayı → sunucu → panel: `dayi-state` (enabled, threshold, level, status). Oyun → sunucu → dayı: `dayi-cue` (shock/cheer/clap). Mesajlar `/live` üzerinden doğrulanarak yayınlanır; ham ses gönderilmez. Oyun sıfırlanınca dayı ve mikrofon çalışmaya devam eder.
 
 ## Yayında kullanım
 

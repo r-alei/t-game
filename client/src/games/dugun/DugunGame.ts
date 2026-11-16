@@ -18,8 +18,7 @@ import { Dancer, Ring, type Beat } from './dancers.ts';
 import { SPOTS, WeddingCar, World } from './world.ts';
 import { Hud } from './hud.ts';
 import { SCREEN } from '../../engine/layout.ts';
-import { Dayi } from './dayi.ts';
-import { SpeakerMicrophone } from './microphone.ts';
+import type { DayiCue } from '../../../../shared/dayi.ts';
 import { MENU, TEMPO, TIMING, giftMatches, momentFor, type MomentId } from './config.ts';
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -82,8 +81,7 @@ interface GiftTally {
 }
 
 export class DugunGame implements Game {
-  private dayi!: Dayi;
-  private microphone = new SpeakerMicrophone();
+  onDayiCue: ((cue: DayiCue) => void) | null = null;
   private solo: { dancer: Dancer; until: number } | null = null;
   private ctx!: GameContext;
   private world!: World;
@@ -120,7 +118,7 @@ export class DugunGame implements Game {
 
   private defaultOptions(): DugunState['options'] {
     return { interactionsEnabled: true, rolesLocked: false, kaynanaEnabled: true,
-      tempoFromLikes: true, hudVisible: true, namesVisible: true, dayiVisible: true };
+      tempoFromLikes: true, hudVisible: true, namesVisible: true };
   }
 
   start(ctx: GameContext): void {
@@ -168,8 +166,6 @@ export class DugunGame implements Game {
 
     this.director = new Director(camera, this.idleShots());
     this.hud = new Hud(ctx.hud);
-    this.dayi = new Dayi(ctx.hud);
-    ctx.banner.setLeftInset(350);
     this.refreshHud(true);
   }
 
@@ -361,7 +357,7 @@ export class DugunGame implements Game {
     // Merkezde, çiftin arasında ve arkasında oynar.
     d.walkTo(v(0, 0, -0.9), 1.2);
     this.solo = { dancer: d, until: this.now + 12 };
-    this.dayi.react('solo');
+    this.onDayiCue?.('clap');
     this.hud.announce(`💃 ${d.name} ortaya çıktı!`);
     this.director.push(this.closeUp(d, 'ortaya', 3, 3.5));
     // Yakın çekimden sonra da ön sıranın üstünden soloyu göster.
@@ -445,7 +441,7 @@ export class DugunGame implements Game {
     d.pinnedTag = true;
     d.walkTo(role === 'gelin' ? GELIN_SPOT : DAMAT_SPOT, 1.6);
     this.thrones[role] = { dancer: d, since: this.now };
-    this.dayi.react('celebrate');
+    this.onDayiCue?.('cheer');
     this.confetti.burst((role === 'gelin' ? GELIN_SPOT : DAMAT_SPOT).clone().add(v(0, 3, 0)), d.color, 90);
     this.hud.announce(role === 'gelin' ? `👰 Yeni gelin: ${name}!` : `🤵 Yeni damat: ${name}!`);
     this.refreshHud(false);
@@ -545,7 +541,7 @@ export class DugunGame implements Game {
 
   /** Tempo sınırı aşıldı: zincir kopar, herkes domino gibi yere yığılır */
   private breakHalay(): void {
-    this.dayi.react('surprise');
+    this.onDayiCue?.('shock');
     this.brokenUntil = this.now + TEMPO.fallenSeconds;
     this.bpm = TEMPO.base;
     // Zincirin başından sonuna doğru sırayla düşerler (domino)
@@ -741,7 +737,6 @@ export class DugunGame implements Game {
 
   update(dt: number): void {
     this.now += dt;
-    this.microphone.update(dt);
     this.updateGiftTally();
 
     // Tempo: dinlenme hızına yavaşça döner; sınırı geçerse halay kopar
@@ -764,7 +759,6 @@ export class DugunGame implements Game {
       d.namesVisible = this.options.namesVisible;
       d.update(dt, this.now, beat, focus);
     }
-    this.dayi.update(dt, this.microphone.speech);
     for (const d of Object.values(this.musicians)) if (d && !d.busy) d.facing = -0.5;
     // Gelin ve damat kameraya bakar, halkanın ortasında oynar
     for (const r of ['gelin', 'damat'] as const) {
@@ -851,7 +845,6 @@ export class DugunGame implements Game {
         giftId: item.giftId, giftName: item.giftName, count: item.count, moment: item.moment as DugunState['giftRules'][number]['moment'],
       })),
       paused: false, soundEnabled: false,
-      microphone: this.microphone.getState(),
     };
   }
 
@@ -860,10 +853,6 @@ export class DugunGame implements Game {
     // Töreni yarıda düzenlemek istendiğinde önce çift güvenle halaya döner.
     if (this.carPhase && ['assign', 'remove', 'clear-role', 'set-time', 'set-duration'].includes(command.action)) this.newWedding(false);
     switch (command.action) {
-      case 'set-microphone':
-        void this.microphone.configure(command.enabled, command.threshold);
-        notice('Dayı mikrofon ayarı uygulandı.');
-        break;
       case 'assign': {
         let d: Dancer | undefined;
         if ('id' in command.person) d = this.dancers.get(command.person.id);
@@ -928,7 +917,6 @@ export class DugunGame implements Game {
       case 'set-option':
         this.options[command.option] = command.value;
         this.hud.setVisible(this.options.hudVisible);
-        this.dayi.setVisible(this.options.dayiVisible);
         if (command.option === 'kaynanaEnabled' && !command.value) this.kaynanaState = { state: 'wander', next: this.now + 2 };
         notice('Ayar uygulandı.');
         break;
@@ -988,8 +976,6 @@ export class DugunGame implements Game {
   }
 
   reset(): void {
-    this.microphone.stop();
-    this.dayi.dispose();
     this.world.dispose?.();
     this.hud.dispose();
     this.ctx.stage.clear();
@@ -997,9 +983,6 @@ export class DugunGame implements Game {
   }
 
   dispose(): void {
-    this.microphone.stop();
-    this.dayi.dispose();
-    this.ctx.banner.setLeftInset(0);
     this.world.dispose?.();
     this.hud.dispose();
     this.ctx.stage.camera.clearViewOffset();

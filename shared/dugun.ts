@@ -13,7 +13,7 @@ export const ROLE_LABELS: Record<DugunRole, string> = {
   guest: 'Halaycı', halaybasi: 'Halaybaşı', gelin: 'Gelin', damat: 'Damat', kaynana: 'Kaynana',
   davulcu: 'Davulcu', zurnaci: 'Zurnacı',
 };
-export const DUGUN_OPTIONS = ['interactionsEnabled', 'rolesLocked', 'kaynanaEnabled', 'tempoFromLikes', 'hudVisible', 'namesVisible', 'dayiVisible'] as const;
+export const DUGUN_OPTIONS = ['interactionsEnabled', 'rolesLocked', 'kaynanaEnabled', 'tempoFromLikes', 'hudVisible', 'namesVisible'] as const;
 export type DugunOption = typeof DUGUN_OPTIONS[number];
 export type DugunCamera = 'auto' | 'wide' | 'top' | 'couple' | 'person';
 export type DugunCommand =
@@ -22,7 +22,6 @@ export type DugunCommand =
   | { action: 'clear-role'; role: Exclude<DugunRole, 'guest'> }
   | { action: 'set-time' | 'set-duration' | 'set-tempo'; value: number }
   | { action: 'set-option'; option: DugunOption; value: boolean }
-  | { action: 'set-microphone'; enabled: boolean; threshold: number }
   | { action: 'set-gift'; rule: DugunGiftRule }
   | { action: 'effect'; effect: 'break-halay' | 'throw-groom' | 'confetti' | 'scold' }
   | { action: 'camera'; view: DugunCamera; id?: string }
@@ -41,7 +40,6 @@ export interface DugunState {
   notice: string;
   paused: boolean;
   soundEnabled: boolean;
-  microphone?: { enabled: boolean; threshold: number; level: number; status: 'off' | 'requesting' | 'ready' | 'unavailable' };
 }
 
 /** WebSocket sınırında yalnız bilinen komut ve sonlu, aralıklı değerler kabul edilir. */
@@ -50,9 +48,6 @@ export function parseDugunCommand(input: unknown): DugunCommand | null {
   const c = input as Record<string, unknown>;
   const text = (value: unknown) => typeof value === 'string' && value.trim().length > 0 && value.length <= 200;
   switch (c.action) {
-    case 'set-microphone': return typeof c.enabled === 'boolean' && typeof c.threshold === 'number'
-      && Number.isFinite(c.threshold) && c.threshold >= 0.005 && c.threshold <= 0.2
-      ? { action: c.action, enabled: c.enabled, threshold: c.threshold } : null;
     case 'assign': {
       if (!DUGUN_ROLES.includes(c.role as DugunRole) || !c.person || typeof c.person !== 'object') return null;
       const person = c.person as Record<string, unknown>;

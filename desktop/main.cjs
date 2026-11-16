@@ -9,6 +9,7 @@
 const { app, BrowserWindow, screen, session } = require('electron');
 
 const URL = process.env.OYUN_URL || 'http://127.0.0.1:4300/';
+const DAYI_URL = process.env.DAYI_URL;
 const TITLE = 'Canlı Oyun · Yayın Ekranı';
 
 // Arka planda / üstü kapalıyken Chromium'un kare hızını düşürmesini engelle
@@ -60,6 +61,25 @@ app.whenReady().then(() => {
   win.webContents.on('did-fail-load', () => setTimeout(load, 1500));
   win.once('ready-to-show', () => win.show());
   load();
+
+  if (DAYI_URL) {
+    const scale = Math.min(1, work.width / 1280, work.height / 720);
+    const dayi = new BrowserWindow({
+      width: Math.floor(1280 * scale), height: Math.floor(720 * scale),
+      useContentSize: true, frame: false, resizable: true,
+      fullscreenable: false, title: 'Canlı Oyun · Dayı Ekranı',
+      backgroundColor: '#422f49', show: false,
+      webPreferences: { backgroundThrottling: false },
+    });
+    dayi.on('page-title-updated', (event) => event.preventDefault());
+    const loadDayi = () => dayi.loadURL(DAYI_URL).catch(() => {});
+    dayi.webContents.on('did-fail-load', () => setTimeout(() => { if (!dayi.isDestroyed()) loadDayi(); }, 1500));
+    dayi.webContents.on('before-input-event', (_event, input) => {
+      if (input.type === 'keyDown' && input.key === 'Escape') dayi.close();
+    });
+    dayi.once('ready-to-show', () => dayi.show());
+    loadDayi();
+  }
 });
 
 app.on('window-all-closed', () => app.quit());

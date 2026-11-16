@@ -14,6 +14,12 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
       <div><small>Katılımcı</small><strong id="dgCount">0</strong></div>
       <div><small>Tempo</small><strong id="dgBpm">—</strong></div>
       <div><small>Durum</small><strong id="dgPhase">Kapalı</strong></div></div>
+    <a class="game-link" href="/dayi" target="_blank" rel="noopener">Dayı ekranını aç ↗</a>
+      <h3>Dayı mikrofonu</h3>
+      <label class="toggle"><input id="dgMicEnabled" type="checkbox" checked>Dayı mikrofonu açık</label>
+      <label>Konuşma eşiği (düşük değer daha hassas)<input id="dgMicThreshold" type="range" min="0.005" max="0.2" step="0.005" value="0.025"></label>
+      <meter id="dgMicLevel" min="0" max="0.2" value="0" aria-label="Mikrofon ses seviyesi"></meter>
+      <p id="dgMicStatus" class="muted compact" role="status">Dayı ekranı bekleniyor…</p>
     <fieldset id="dgControls" disabled>
       <div class="admin-toolbar">
         <button data-dg-control="pause" class="ghost">Duraklat</button><button data-dg-control="resume">Devam et</button>
@@ -52,11 +58,6 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
         <p class="muted compact">Ses düğmesi mevcut efektleri açar; davul-zurna kaydı eklemez.</p>
         <p id="dgSoundState" class="muted compact">Ses kapalı</p>
       </div></div>
-      <h3>Dayı mikrofonu</h3>
-      <label class="toggle"><input id="dgMicEnabled" type="checkbox">Dayı mikrofonu açık</label>
-      <label>Konuşma eşiği (düşük değer daha hassas)<input id="dgMicThreshold" type="range" min="0.005" max="0.2" step="0.005" value="0.025"></label>
-      <meter id="dgMicLevel" min="0" max="0.2" value="0" aria-label="Mikrofon ses seviyesi"></meter>
-      <p id="dgMicStatus" class="muted compact" role="status">Mikrofon kapalı</p>
       <h3>Sahne ve kamera</h3>
       <div class="row"><button data-dg-effect="break-halay">Halayı kopar</button><button data-dg-effect="throw-groom" class="ghost">Damadı havaya at</button>
         <button data-dg-effect="confetti" class="ghost">Konfeti</button><button data-dg-effect="scold" class="ghost">Kaynana müdahalesi</button></div>
@@ -89,7 +90,10 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
   const controls = get<HTMLFieldSetElement>('dgControls');
   const micEnabled = get<HTMLInputElement>('dgMicEnabled');
   const micThreshold = get<HTMLInputElement>('dgMicThreshold');
-  const configureMic = () => send({ action: 'set-microphone', enabled: micEnabled.checked, threshold: Number(micThreshold.value) });
+  const configureMic = () => {
+    if (!live.sendNow({ kind: 'dayi-command', command: { enabled: micEnabled.checked, threshold: Number(micThreshold.value) } }))
+      get('dgMicStatus').textContent = 'Sunucu bağlantısı kapalı.';
+  };
   micEnabled.onchange = configureMic;
   micThreshold.oninput = configureMic;
   const personSelect = get<HTMLSelectElement>('dgPerson');
@@ -168,7 +172,7 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
   const optionLabels: Record<DugunOption, string> = {
     interactionsEnabled: 'İzleyici yorum ve hediyelerini işle', rolesLocked: 'Hediyelerle rol değişimini kilitle',
     kaynanaEnabled: 'Kaynananın otomatik müdahalesi', tempoFromLikes: 'Beğeniler tempoyu artırsın',
-    hudVisible: 'Yayın ekranındaki yazıları göster', namesVisible: 'Karakter isimlerini göster', dayiVisible: 'Dayıyı göster',
+    hudVisible: 'Yayın ekranındaki yazıları göster', namesVisible: 'Karakter isimlerini göster',
   };
   const checkboxes = new Map<DugunOption, HTMLInputElement>();
   const giftInputs = new Map<string, { gift: HTMLSelectElement; customId: HTMLInputElement; count: HTMLInputElement; dirty: boolean }>();
@@ -256,13 +260,6 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
     get('dgBpm').textContent = `${Math.round(next.tempo)} BPM`;
     get('dgPhase').textContent = next.paused ? 'Duraklatıldı' : next.phase === 'ceremony' ? 'Araba töreni' : next.musicPlaying ? 'Halay' : 'Halay durdu';
     get('dgSoundState').textContent = next.soundEnabled ? 'Efekt sesi açık' : 'Efekt sesi kapalı';
-    if (next.microphone) {
-      micEnabled.checked = next.microphone.enabled;
-      if (document.activeElement !== micThreshold) micThreshold.value = String(next.microphone.threshold);
-      get<HTMLMeterElement>('dgMicLevel').value = next.microphone.level;
-      get('dgMicStatus').textContent = { off: 'Mikrofon kapalı', requesting: 'Oyun ekranında mikrofon izni bekleniyor…',
-        ready: 'Mikrofon açık · ses yalnız oyun ekranında analiz edilir', unavailable: 'Mikrofon yok · izin ve ses girişini kontrol edip kapat/aç' }[next.microphone.status];
-    }
     for (const rule of next.giftRules) {
       let inputs = giftInputs.get(rule.moment);
       if (!inputs) {
@@ -318,7 +315,23 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
     renderParticipants();
   }
   live.onOpen(() => live.sendNow({ kind: 'dugun-subscribe' }));
+  let lastDayiAt = 0;
   live.on((message) => {
+    if (message.kind === 'dayi-state') {
+      lastDayiAt = message.state ? Date.now() : 0;
+      const mic = message.state;
+      if (!mic) {
+        get('dgMicStatus').textContent = 'Dayı ekranı bağlı değil. Dayı ekranını aç.';
+        get<HTMLMeterElement>('dgMicLevel').value = 0;
+      } else {
+        micEnabled.checked = mic.enabled;
+        if (document.activeElement !== micThreshold) micThreshold.value = String(mic.threshold);
+        get<HTMLMeterElement>('dgMicLevel').value = mic.level;
+        get('dgMicStatus').textContent = { off: 'Mikrofon kapalı', requesting: 'Dayı ekranında mikrofon izni bekleniyor…',
+          ready: 'Mikrofon açık · ses yalnız dayı ekranında analiz edilir', unavailable: 'Mikrofon yok · Dayı ekranına tıkla veya izin ve ses girişini kontrol edip kapat/aç' }[mic.status];
+      }
+    }
+
     if (message.kind === 'dugun-chat') receiveChat(message.events);
     else if (message.kind === 'event' && message.event.type === 'comment') receiveChat([message.event]);
     else if (message.kind === 'dugun-state' && message.state) render(message.state);
@@ -326,6 +339,10 @@ export function mountDugunPanel(host: HTMLElement, live: LiveClient): void {
     else if (message.kind === 'dugun-error') notice(message.message);
   });
   window.setInterval(() => {
+    if (!lastDayiAt || Date.now() - lastDayiAt > 4000) {
+      get('dgMicStatus').textContent = 'Dayı ekranı bağlı değil. Dayı ekranını aç.';
+      get<HTMLMeterElement>('dgMicLevel').value = 0;
+    }
     if (lastStateAt && Date.now() - lastStateAt < 4000) return;
     controls.disabled = true;
     get('dgConnection').textContent = 'Düğün oyun ekranı bağlı değil. Yukarıdaki bağlantıdan ekranı aç.';
