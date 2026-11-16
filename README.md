@@ -33,6 +33,10 @@ Göndermeden önce `npm test`, `npm run typecheck` ve `npm run build` çalışt�
 
 ## Dayı ekranı
 
+Dayı, yayıncının Nano Banana ile ürettiği yedi şeffaf 768×768 WebP kareyle çizilen chibi bir PNGtuber'dır. Kareler `client/public/dayi/` içindedir; baştan birlikte yüklenip decode edilir, kapalı ağız karesi hazır olur olmaz gösterilir. Üst üste duran görseller arasında yalnız görünürlük değişir. Kare tuvali pencere yüksekliğinin yaklaşık %92'sini kaplar (dar pencerede genişliğe sığar); karakter ortada, yumuşak gölgenin üstünde, küçük isim şeridi ayakların altındadır.
+
+Animasyon gerçek geçen süreyle ilerler: konuşurken ses seviyesine göre iki ağız karesi 9–12 geçiş/sn hedefiyle oynar, her kare en az 70 ms tutulur; ses kesilince 120 ms sonra ağız kapanır. Konuşmaya hafif zıplama, esneme ve eğilme eşlik eder. Sessizlikte yavaş nefes ve 3–6 saniyede bir 130 ms göz kırpma vardır. `shock` şaşkınlığı 1,8 sn, `cheer` mendilli coşkuyu 2,4 sn, `clap` alkışı 2 sn gösterir; konuşma jestin hareketini artırır, yeni jest eskisini keser. Görsel kaynağı: [KAYNAK.md](client/public/dayi/KAYNAK.md).
+
 Düğün başlatıcısı oyunla birlikte 1280×720, boyutu değiştirilebilir **Canlı Oyun · Dayı Ekranı** penceresini açar. Adres: `http://127.0.0.1:4300/dayi`. LIVE Studio'da **Pencere yakalama** ile **Canlı Oyun · Dayı Ekranı** penceresini ekle ve oyunun üstüne bant olarak yerleştir. `?bg=green` ile krom anahtar (#00b140), `?bg=black` ile siyah fon; `?ad=Mehmet` ile isim değişir. Parametreler birleşebilir: `/dayi?bg=green&ad=Mehmet`. Varsayılan sıcak düğün fonudur; pencere opaktır. Sürükleyerek taşı, Esc ile kapat. Diğer oyunlarda dayı penceresi açılmaz.
 
 Mikrofon varsayılan açıktır; izin ilk açılışta dayı ekranında istenir. Panelde aç/kapa ve eşik ayarlanır, ayarlar dayı ekranının localStorage'ında hatırlanır. Panel → sunucu → dayı: `dayi-command`; dayı → sunucu → panel: `dayi-state` (enabled, threshold, level, status). Oyun → sunucu → dayı: `dayi-cue` (shock/cheer/clap). Mesajlar `/live` üzerinden doğrulanarak yayınlanır; ham ses gönderilmez. Oyun sıfırlanınca dayı ve mikrofon çalışmaya devam eder.
