@@ -1,5 +1,5 @@
 /**
- * DÜĞÜN VAR!
+ * DÜĞÜN DERNEK
  * Mahalle düğünü. Yorum yazan halaya girer; beğeni davulu hızlandırır, çok hızlanırsa halay kopar.
  * Gelinlik, damatlık ve mendil ucuz hediyelerle elden ele geçer. Düğün sonunda o anki gelin ve
  * damat gelin arabasına biner. Kaynana rolünü alan izleyici ara sıra müziği keser.
@@ -8,6 +8,8 @@
  * Figürler dancers.ts, sahne world.ts, ekran yazıları hud.ts içinde.
  */
 import * as THREE from 'three';
+import type { DugunCamera, DugunCommand, DugunRole, DugunState } from '../../../../shared/dugun.ts';
+import { GIFT_ICONS } from '../../../../shared/dugun.ts';
 import type { GiftEvent, LiveEvent, Viewer } from '../../../../shared/events.ts';
 import type { Game, GameContext } from '../Game.ts';
 import { Director, type Pose, type Shot } from '../../engine/director.ts';
@@ -16,7 +18,7 @@ import { Dancer, Ring, type Beat } from './dancers.ts';
 import { SPOTS, WeddingCar, World } from './world.ts';
 import { Hud } from './hud.ts';
 import { SCREEN } from '../../engine/layout.ts';
-import { TEMPO, TIMING, momentFor, type MomentId } from './config.ts';
+import { MENU, TEMPO, TIMING, momentFor, type MomentId } from './config.ts';
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const pose = (pos: THREE.Vector3, look: THREE.Vector3): Pose => ({ pos, look });
@@ -63,6 +65,20 @@ interface FlyingCoin {
   t: number;
 }
 
+/** Son hediyeden bu kadar sn sonra rol verilir (seri bitişini beklemeden) */
+const GIFT_SETTLE = 1.2;
+/** Bu kadar sn içinde gelen aynı hediyeler toplanır (ayrı seriler birleşir) */
+const GIFT_MERGE = 30;
+
+interface GiftTally {
+  total: number;
+  applied: number;
+  /** Bu serideki artışlar; seri sonu toplamıyla karşılaştırılır */
+  combo: number;
+  lastAt: number;
+  last: GiftEvent;
+}
+
 export class DugunGame implements Game {
   private ctx!: GameContext;
   private world!: World;
@@ -77,6 +93,7 @@ export class DugunGame implements Game {
   private records = new Map<string, WeddingRecord>();
   private halaybasi: Dancer | null = null;
   private kaynana: Dancer | null = null;
+  private musicians: Record<'davulcu' | 'zurnaci', Dancer | null> = { davulcu: null, zurnaci: null };
   private kaynanaState: Kaynana = { state: 'wander', next: 0 };
   private nextScold = 0;
   private coins: FlyingCoin[] = [];
@@ -89,6 +106,17 @@ export class DugunGame implements Game {
   private carPhase: { t: number } | null = null;
   private flyingDamat: Dancer | null = null;
   private hudTimer = 0;
+  private durationSeconds: number = TIMING.weddingSeconds;
+  private menu = MENU.map((item) => ({ ...item }));
+  private adminCamera: DugunCamera = 'auto';
+  private adminNotice = '';
+  private options: DugunState['options'] = this.defaultOptions();
+  private giftTally = new Map<string, GiftTally>();
+
+  private defaultOptions(): DugunState['options'] {
+    return { interactionsEnabled: true, rolesLocked: false, kaynanaEnabled: true,
+      tempoFromLikes: true, hudVisible: true, namesVisible: true };
+  }
 
   start(ctx: GameContext): void {
     this.ctx = ctx;
@@ -107,6 +135,7 @@ export class DugunGame implements Game {
     this.dancers = new Map();
     this.records = new Map();
     this.coins = [];
+    this.giftTally = new Map();
     this.halaybasi = null;
     this.now = 0;
     this.bpm = TEMPO.base;
@@ -117,11 +146,17 @@ export class DugunGame implements Game {
     this.flyingDamat = null;
 
     this.kaynana = null;
+    this.musicians = { davulcu: null, zurnaci: null };
     this.kaynanaState = { state: 'wander', next: 0 };
     this.thrones = {
       gelin: { dancer: null, since: 0 },
       damat: { dancer: null, since: 0 },
     };
+    this.durationSeconds = TIMING.weddingSeconds;
+    this.menu = MENU.map((item) => ({ ...item }));
+    this.adminCamera = 'auto';
+    this.options = this.defaultOptions();
+    this.adminNotice = 'Yönetim paneli hazır.';
     this.lastLiker = null;
     this.hudTimer = 0;
 
@@ -133,6 +168,7 @@ export class DugunGame implements Game {
   // ------------------------------------------------------------------ olaylar
 
   onEvent(e: LiveEvent): void {
+    if (!this.options.interactionsEnabled) return;
     switch (e.type) {
       case 'comment': {
         const { dancer, joined } = this.join(e.viewer);
@@ -146,7 +182,7 @@ export class DugunGame implements Game {
         this.lastLiker = e.viewer;
         const d = this.dancers.get(e.viewer.id);
         if (d) d.lastActive = this.now;
-        if (this.playing) this.bpm += e.count * TEMPO.perLike;
+        if (this.playing && this.options.tempoFromLikes) this.bpm += e.count * TEMPO.perLike;
         break;
       }
       case 'follow':
@@ -161,16 +197,72 @@ export class DugunGame implements Game {
         break;
       }
       case 'gift':
-        this.onGift(e);
+        this.tallyGift(e, e.count);
         break;
+      case 'gift-finished': {
+        // Seri sonu: artışlardan eksik kalan adet varsa eklenir ve rol hemen verilir
+        const t = this.giftTally.get(this.tallyKey(e));
+        const missing = e.count - (t?.combo ?? 0);
+        if (missing > 0) this.tallyGift({ ...e, type: 'gift', count: missing }, missing);
+        const done = this.giftTally.get(this.tallyKey(e));
+        if (done) { done.combo = 0; this.flushGift(done); }
+        break;
+      }
+    }
+  }
+
+  private tallyKey(e: { viewer: Viewer; giftId: string }): string {
+    return `${e.viewer.id}:${e.giftId}`;
+  }
+
+  /**
+   * Hediye sayacı (izleyici + hediye başına). Seri bitişini (TikTok'un repeatEnd'i geç gelir,
+   * bazen hiç gelmez) beklemeden, son hediyeden GIFT_SETTLE sn sonra rol verilir. Kısa arayla
+   * gönderilen ayrı seriler toplanır: 5 + 5 gül = 10 gül = gelin.
+   */
+  private tallyGift(e: GiftEvent, count: number): void {
+    const { dancer: d } = this.join(e.viewer);
+    d.touch(this.now, 12);
+    this.hud.flash(e.giftId);
+    const key = this.tallyKey(e);
+    const t = this.giftTally.get(key) ?? { total: 0, applied: 0, combo: 0, lastAt: this.now, last: e };
+    t.total += count;
+    t.combo += count;
+    t.lastAt = this.now;
+    t.last = e;
+    this.giftTally.set(key, t);
+  }
+
+  private flushGift(t: GiftTally): void {
+    if (t.total <= t.applied) return;
+    const count = t.total - t.applied;
+    t.applied = t.total;
+    this.onGift({ ...t.last, type: 'gift', count, streakTotal: t.total });
+  }
+
+  private updateGiftTally(): void {
+    for (const [key, t] of this.giftTally) {
+      const idle = this.now - t.lastAt;
+      if (idle >= GIFT_SETTLE) this.flushGift(t);
+      if (idle >= GIFT_MERGE) this.giftTally.delete(key);
     }
   }
 
   private onGift(e: GiftEvent): void {
     const { dancer: d } = this.join(e.viewer);
     d.touch(this.now, 12);
-    this.hud.flash(e.giftId);
-    const moment = momentFor(e);
+    const moment = momentFor(e, this.menu);
+    const currentMoment = this.roleOf(d) === 'halaybasi' ? 'mendil' : this.roleOf(d);
+    const currentRule = this.menu.find((item) => item.moment === currentMoment && item.giftId === e.giftId);
+    const nextRule = this.menu.find((item) => item.moment === moment);
+    if (currentRule && nextRule && nextRule.count < currentRule.count) {
+      this.hud.announce(`${d.name} mevcut rolünü koruyor.`);
+      return;
+    }
+    if (moment && this.options.rolesLocked && ['mendil', 'gelin', 'damat', 'kaynana', 'davulcu', 'zurnaci'].includes(moment)) {
+      this.hud.announce('Rol değişimleri yayıncı tarafından kilitlendi.');
+      return;
+    }
     if (moment) this.play(moment, d, e);
   }
 
@@ -191,49 +283,10 @@ export class DugunGame implements Game {
         if (this.director.pending < 2) this.director.push(this.coupleShot(2, 3.2));
         break;
       }
-      case 'mendil': {
-        if (this.carPhase) {
-          this.hud.announce('Final sürüyor; rol kapışması yeni düğünde açılacak.');
-          break;
-        }
-        this.releaseRole(d);
-        if (!this.ring.has(d)) this.dethrone(d);
-        if (this.halaybasi && this.halaybasi !== d) {
-          this.halaybasi.setMendil(false);
-          this.halaybasi.pinnedTag = false;
-        }
-        this.halaybasi = d;
-        this.ring.toHead(d);
-        d.setMendil(true);
-        d.pinnedTag = true;
-        if (this.playing) this.bpm += 6;
-        this.hud.announce(`🔴 Halaybaşı: ${name}!`);
-        this.director.push(this.closeUp(d, 'halaybaşı', 3, 4));
-        break;
-      }
-      case 'kaynana': {
-        if (this.carPhase) {
-          this.hud.announce('Final sürüyor; rol kapışması yeni düğünde açılacak.');
-          break;
-        }
-        if (this.kaynana === d) {
-          d.wave(this.now, 3);
-          break;
-        }
-        this.releaseRole(d);
-        if (this.kaynana) this.dethrone(this.kaynana);
-        this.ring.remove(d);
-        this.clearLeader(d);
-        this.kaynana = d;
-        d.dress('kaynana');
-        d.pinnedTag = true;
-        d.walkTo(v(-8, 0, -6), 1.6);
-        this.kaynanaState = { state: 'wander', next: this.now + 3 };
-        this.nextScold = this.now + rand(...TIMING.kaynanaEvery);
-        this.hud.announce(`Kaynana: ${name}!`);
-        this.director.push(this.closeUp(d, 'kaynana', 3, 4));
-        break;
-      }
+      case 'mendil': this.takeLeader(d); break;
+      case 'kaynana': this.takeKaynana(d); break;
+      case 'davulcu':
+      case 'zurnaci': this.takeMusician(moment, d); break;
       case 'gelin':
       case 'damat':
         this.crown(moment, d);
@@ -241,7 +294,7 @@ export class DugunGame implements Game {
       case 'havaya': {
         const damat = this.thrones.damat.dancer;
         if (!damat) {
-          this.hud.announce('Damat rolü henüz boş: Gül ×20 ile damat ol!');
+          this.hud.announce('Damat rolü henüz boş; hediye menüsünden damat ol!');
           break;
         }
         if (damat.airborne || this.carPhase) {
@@ -258,6 +311,71 @@ export class DugunGame implements Game {
         break;
       }
     }
+  }
+
+  private takeLeader(d: Dancer): void {
+    if (this.carPhase) {
+      this.hud.announce('Final sürüyor; rol kapışması yeni düğünde açılacak.');
+      return;
+    }
+    d.settle();
+    if (this.flyingDamat === d) this.flyingDamat = null;
+    this.releaseRole(d);
+    if (!this.ring.has(d)) this.dethrone(d);
+    if (this.halaybasi && this.halaybasi !== d) {
+      this.halaybasi.setMendil(false);
+      this.halaybasi.pinnedTag = false;
+    }
+    this.halaybasi = d;
+    this.ring.toHead(d);
+    d.setMendil(true);
+    d.pinnedTag = true;
+    if (this.playing) this.bpm += 6;
+    this.hud.announce(`🔴 Halaybaşı: ${d.name}!`);
+    this.director.push(this.closeUp(d, 'halaybaşı', 3, 4));
+  }
+
+  private takeKaynana(d: Dancer): void {
+    if (this.carPhase) {
+      this.hud.announce('Final sürüyor; rol kapışması yeni düğünde açılacak.');
+      return;
+    }
+    if (this.kaynana === d) {
+      d.wave(this.now, 3);
+      return;
+    }
+    d.settle();
+    if (this.flyingDamat === d) this.flyingDamat = null;
+    this.releaseRole(d);
+    if (this.kaynana) this.dethrone(this.kaynana);
+    this.ring.remove(d);
+    this.clearLeader(d);
+    this.kaynana = d;
+    d.dress('kaynana');
+    d.pinnedTag = true;
+    d.walkTo(v(-8, 0, -6), 1.6);
+    this.kaynanaState = { state: 'wander', next: this.now + 3 };
+    this.nextScold = this.now + rand(...TIMING.kaynanaEvery);
+    this.hud.announce(`Kaynana: ${d.name}!`);
+    this.director.push(this.closeUp(d, 'kaynana', 3, 4));
+  }
+
+  private takeMusician(role: 'davulcu' | 'zurnaci', d: Dancer): void {
+    if (this.carPhase) { this.hud.announce('Rol kapışması yeni düğünde açılacak.'); return; }
+    if (this.musicians[role] === d) return;
+    const old = this.musicians[role];
+    this.releaseRole(d);
+    if (old) this.dethrone(old);
+    this.clearLeader(d);
+    this.ring.remove(d);
+    d.settle();
+    if (this.flyingDamat === d) this.flyingDamat = null;
+    d.dress(role); d.pinnedTag = true;
+    d.walkTo(SPOTS.musicians.clone().add(v(role === 'davulcu' ? -1 : 1.2, 0, 0)), 1.6);
+    d.facing = -0.5;
+    this.musicians[role] = d;
+    this.hud.announce(`${role === 'davulcu' ? 'Davulcu' : 'Zurnacı'}: ${d.name}!`);
+    this.director.push(this.closeUp(d, role, 3, 4));
   }
 
   /** Gelin ya da damat ol: eski rol sahibi halaya döner. */
@@ -280,12 +398,14 @@ export class DugunGame implements Game {
     this.ring.remove(d);
     this.clearLeader(d);
     d.dress(role);
+    d.settle();
+    if (this.flyingDamat === d) this.flyingDamat = null;
     d.pinnedTag = true;
     d.walkTo(role === 'gelin' ? GELIN_SPOT : DAMAT_SPOT, 1.6);
     this.thrones[role] = { dancer: d, since: this.now };
     this.confetti.burst((role === 'gelin' ? GELIN_SPOT : DAMAT_SPOT).clone().add(v(0, 3, 0)), d.color, 90);
     this.hud.announce(role === 'gelin' ? `👰 Yeni gelin: ${name}!` : `🤵 Yeni damat: ${name}!`);
-    this.refreshHud(false, role);
+    this.refreshHud(false);
     this.director.push(this.closeUp(d, role, 3, 4));
   }
 
@@ -298,6 +418,7 @@ export class DugunGame implements Game {
 
   /** Bir izleyici aynı anda yalnız bir özel rol üstlenebilir. */
   private releaseRole(d: Dancer): void {
+    for (const role of ['davulcu', 'zurnaci'] as const) if (this.musicians[role] === d) this.musicians[role] = null;
     for (const role of ['gelin', 'damat'] as const) {
       if (this.thrones[role].dancer !== d) continue;
       this.closeThrone(role);
@@ -311,6 +432,8 @@ export class DugunGame implements Game {
 
   /** Eski rol sahibi gerçek izleyici olarak halaya döner. */
   private dethrone(old: Dancer): void {
+    old.settle();
+    if (this.flyingDamat === old) this.flyingDamat = null;
     old.group.visible = true;
     old.dress('guest');
     old.clearCoins();
@@ -398,7 +521,7 @@ export class DugunGame implements Game {
   private updateKaynana(): void {
     const k = this.kaynana;
     const s = this.kaynanaState;
-    if (!k || this.carPhase) return;
+    if (!k || this.carPhase || (!this.options.kaynanaEnabled && s.state !== 'scold')) return;
     if (s.state === 'wander') {
       if (this.now >= this.nextScold && !k.busy) {
         // Çalgıcılara yürür, müziği keser
@@ -448,7 +571,7 @@ export class DugunGame implements Game {
       return;
     }
     this.elapsed += dt;
-    const left = TIMING.weddingSeconds - this.elapsed;
+    const left = this.durationSeconds - this.elapsed;
     this.hud.setCountdown(left <= TIMING.countdownSeconds && left > 0 ? left : null);
     if (left <= 0) this.endWedding();
   }
@@ -482,6 +605,9 @@ export class DugunGame implements Game {
 
   /** Yeni düğünde roller boşalır; izleyiciler halayda kalır. */
   private newWedding(announce = true): void {
+    this.car.reset();
+    this.director.hold(null);
+    this.adminCamera = 'auto';
     for (const role of ['gelin', 'damat'] as const) {
       const d = this.thrones[role].dancer;
       if (d) this.dethrone(d);
@@ -565,6 +691,7 @@ export class DugunGame implements Game {
 
   update(dt: number): void {
     this.now += dt;
+    this.updateGiftTally();
 
     // Tempo: dinlenme hızına yavaşça döner; sınırı geçerse halay kopar
     if (this.bpm > TEMPO.base) this.bpm = Math.max(TEMPO.base, this.bpm - TEMPO.decay * dt * (1 + (this.bpm - TEMPO.base) / 40));
@@ -578,7 +705,11 @@ export class DugunGame implements Game {
 
     this.ring.update(dt, beat, this.bpm / 60);
     const focus = (this.director.focus as Dancer | null) ?? null;
-    for (const d of this.everyone()) d.update(dt, this.now, beat, focus);
+    for (const d of this.everyone()) {
+      d.namesVisible = this.options.namesVisible;
+      d.update(dt, this.now, beat, focus);
+    }
+    for (const d of Object.values(this.musicians)) if (d && !d.busy) d.facing = -0.5;
     // Gelin ve damat kameraya bakar, halkanın ortasında oynar
     for (const r of ['gelin', 'damat'] as const) {
       const d = this.thrones[r].dancer;
@@ -635,14 +766,162 @@ export class DugunGame implements Game {
     });
   }
 
-  private refreshHud(all: boolean, swapped?: RoleName): void {
-    for (const r of ['gelin', 'damat'] as const) {
-      const { dancer, since } = this.thrones[r];
-      this.hud.setRole(r, dancer?.viewer ?? null, this.now - since, swapped === r);
-    }
+  private refreshHud(all: boolean): void {
     this.hud.setTempo(this.bpm, this.playing);
-    this.hud.setClock(TIMING.weddingSeconds - this.elapsed);
+    this.hud.setClock(this.durationSeconds - this.elapsed);
     if (all) this.hud.setCountdown(null);
+  }
+
+  private roleOf(d: Dancer): DugunRole {
+    if (this.musicians.davulcu === d) return 'davulcu';
+    if (this.musicians.zurnaci === d) return 'zurnaci';
+    if (this.thrones.gelin.dancer === d) return 'gelin';
+    if (this.thrones.damat.dancer === d) return 'damat';
+    if (this.kaynana === d) return 'kaynana';
+    if (this.halaybasi === d) return 'halaybasi';
+    return 'guest';
+  }
+
+  getAdminState(): DugunState {
+    return {
+      participants: [...this.dancers.values()].filter((d) => d.viewer).map((d) => ({
+        viewer: d.viewer!, role: this.roleOf(d), manual: d.viewer!.id.startsWith('manual:'),
+      })),
+      remainingSeconds: Math.max(0, this.durationSeconds - this.elapsed),
+      durationSeconds: this.durationSeconds, tempo: this.bpm,
+      phase: this.carPhase ? 'ceremony' : 'wedding', musicPlaying: this.playing,
+      options: { ...this.options }, camera: this.adminCamera, notice: this.adminNotice,
+      giftRules: this.menu.filter((item) => item.moment !== 'ceyrek').map((item) => ({
+        giftId: item.giftId, count: item.count, moment: item.moment as DugunState['giftRules'][number]['moment'],
+      })),
+      paused: false, soundEnabled: false,
+    };
+  }
+
+  onAdmin(command: DugunCommand): void {
+    const notice = (message: string) => { this.adminNotice = message; };
+    // Töreni yarıda düzenlemek istendiğinde önce çift güvenle halaya döner.
+    if (this.carPhase && ['assign', 'remove', 'clear-role', 'set-time', 'set-duration'].includes(command.action)) this.newWedding(false);
+    switch (command.action) {
+      case 'assign': {
+        let d: Dancer | undefined;
+        if ('id' in command.person) d = this.dancers.get(command.person.id);
+        else if ('viewer' in command.person) d = this.join(command.person.viewer).dancer;
+        else {
+          const name = command.person.name.trim().slice(0, 20);
+          const key = name.normalize('NFKC').toLocaleLowerCase('tr-TR');
+          d = [...this.dancers.values()].find((person) => person.name.normalize('NFKC').toLocaleLowerCase('tr-TR') === key);
+          if (!d) d = this.join({ id: `manual:${key}`, name, avatar: '' }).dancer;
+        }
+        if (!d) { notice('Seçilen kişi artık sahnede değil.'); break; }
+        if (command.role === 'gelin' || command.role === 'damat') this.crown(command.role, d);
+        else if (command.role === 'kaynana') this.takeKaynana(d);
+        else if (command.role === 'halaybasi') this.takeLeader(d);
+        else if (command.role === 'davulcu' || command.role === 'zurnaci') this.takeMusician(command.role, d);
+        else { this.releaseRole(d); this.clearLeader(d); this.dethrone(d); }
+        notice(`${d.name} için rol uygulandı.`);
+        break;
+      }
+      case 'clear-role': {
+        const d = command.role === 'halaybasi' ? this.halaybasi : command.role === 'kaynana' ? this.kaynana
+          : command.role === 'davulcu' || command.role === 'zurnaci' ? this.musicians[command.role] : this.thrones[command.role].dancer;
+        if (d) { this.releaseRole(d); this.clearLeader(d); this.dethrone(d); }
+        notice('Rol boşaltıldı; kişi halaya döndü.');
+        break;
+      }
+      case 'remove': {
+        const d = this.dancers.get(command.id);
+        if (!d) { notice('Kişi bulunamadı.'); break; }
+        this.releaseRole(d);
+        this.clearLeader(d);
+        this.ring.remove(d);
+        this.dancers.delete(command.id);
+        if (this.flyingDamat === d) this.flyingDamat = null;
+        this.coins = this.coins.filter((coin) => {
+          if (coin.to !== d) return true;
+          coin.mesh.geometry.dispose();
+          (coin.mesh.material as THREE.Material).dispose();
+          coin.mesh.removeFromParent();
+          return false;
+        });
+        // Kuyruktaki yakın çekimler silinen karakteri takip etmesin.
+        this.setAdminCamera('auto');
+        d.dispose();
+        notice(`${d.name} sahneden çıkarıldı. Yeni yorum yazarsa tekrar katılabilir.`);
+        break;
+      }
+      case 'set-time':
+        this.durationSeconds = Math.max(this.durationSeconds, command.value);
+        this.elapsed = this.durationSeconds - command.value;
+        notice('Kalan süre güncellendi.');
+        break;
+      case 'set-duration':
+        this.durationSeconds = command.value;
+        this.elapsed = 0;
+        notice('Düğün süresi ayarlandı; sayaç başa alındı.');
+        break;
+      case 'set-tempo':
+        this.bpm = command.value;
+        notice('Tempo güncellendi. Kopma eşiği 168 BPM.');
+        break;
+      case 'set-option':
+        this.options[command.option] = command.value;
+        this.hud.setVisible(this.options.hudVisible);
+        if (command.option === 'kaynanaEnabled' && !command.value) this.kaynanaState = { state: 'wander', next: this.now + 2 };
+        notice('Ayar uygulandı.');
+        break;
+      case 'set-gift': {
+        const rule = command.rule;
+        if (this.menu.some((item) => item.moment !== rule.moment && item.giftId === rule.giftId && item.count === rule.count)) {
+          notice('Bu hediye ve adet zaten başka bir etkiye atanmış. Farklı adet veya hediye seç.');
+          break;
+        }
+        const item = this.menu.find((item) => item.moment === rule.moment);
+        if (item) {
+          item.giftId = rule.giftId; item.count = rule.count;
+          item.icon = `/gifts/${GIFT_ICONS[rule.giftId]}.webp`;
+          this.hud.setMenu(this.menu);
+        }
+        notice('Hediye menüsü ve eşlemesi güncellendi.');
+        break;
+      }
+      case 'effect':
+        if (command.effect === 'break-halay') this.breakHalay();
+        if (command.effect === 'confetti') this.confetti.burst(v(0, 5, 0), '#ffd25e', 180);
+        if (command.effect === 'throw-groom') {
+          const d = this.thrones.damat.dancer;
+          if (!d || this.carPhase) { notice('Önce damat ata; tören sırasında fırlatma kapalıdır.'); return; }
+          if (d.airborne) { notice('Damat zaten havada.'); return; }
+          d.throwUp(9);
+          this.flyingDamat = d;
+          this.director.push(this.throwShot(d, 4, 5));
+        }
+        if (command.effect === 'scold') {
+          if (!this.kaynana || this.carPhase) { notice('Önce kaynana ata; tören sırasında müdahale kapalıdır.'); return; }
+          this.kaynanaState = { state: 'scold', until: this.now + TIMING.kaynanaStopSeconds };
+          this.hud.announce('Kaynana halayı durdurdu!');
+        }
+        notice('Sahne efekti uygulandı.');
+        break;
+      case 'camera': this.setAdminCamera(command.view, command.id); notice('Kamera seçimi uygulandı.'); break;
+      case 'new-wedding': this.newWedding(); notice('Yeni düğün başladı; katılımcılar korundu.'); break;
+      case 'finish-wedding':
+        if (!this.carPhase) this.endWedding();
+        notice('Düğün bitirildi. Çift varsa araba töreni başlar.');
+        break;
+    }
+    this.refreshHud(false);
+  }
+
+  private setAdminCamera(view: DugunCamera, id?: string): void {
+    this.adminCamera = view;
+    const shots = this.idleShots();
+    const d = id ? this.dancers.get(id) : null;
+    const shot = view === 'wide' ? shots[0] : view === 'top' ? shots[1]
+      : view === 'couple' ? shots[3] : view === 'person' && d ? this.closeUp(d, 'yönetmen', 5, Infinity) : null;
+    if (!shot) this.adminCamera = 'auto';
+    // Gezinti pozlarında t süreyle ileri gider; sabit kadrajda t=0 kullanılır.
+    this.director.hold(shot ? { ...shot, duration: Infinity, pose: () => shot.pose(0) } : null);
   }
 
   reset(): void {

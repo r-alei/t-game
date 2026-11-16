@@ -16,6 +16,14 @@ export type NormalizeResult =
 
 const MAX_NAME = 20;
 
+/** Seri sırasında artışlar diğer oyunlara anında gider; düğün rolünü yalnız sonda seçer. */
+export function normalizeGiftCompletion(raw: Raw, now = Date.now()): NormalizeResult {
+  if (!isStreakGift(raw) || !raw.repeatEnd) return { ok: false, reason: 'skip' };
+  const result = normalize('gift', raw, now);
+  if (!result.ok || result.event.type !== 'gift') return result;
+  return { ok: true, event: { ...result.event, type: 'gift-finished', id: `finished:${result.event.id}` } };
+}
+
 /**
  * Seri hediyelerin (gül vb.) o ana kadar sayılmış adedi. TikTok seri sürerken artan toplamla
  * ara güncellemeler gönderir; her güncellemede yalnız yeni eklenen adet olay olur, böylece
@@ -39,6 +47,18 @@ export class GiftStreaks {
     }
     return Math.max(0, total - before);
   }
+}
+
+/**
+ * Seri (combo) hediye mi? tiktok-live-connector 2.x (proto v3) türü `gift.type` ve `gift.combo`
+ * alanında verir; eski sürümler `giftDetails.giftType`. Eskiden yalnız `giftType`a bakıldığı için
+ * hiçbir gül seri sayılmıyor, aynı serinin 2., 3. … güncellemeleri aynı kimlikle tekrar sanılıp
+ * atılıyordu (10 gül = 1 gül).
+ */
+export function isStreakGift(raw: Raw): boolean {
+  const details = raw.giftDetails ?? raw.gift ?? {};
+  const type = Number(details.giftType ?? details.type ?? raw.giftType);
+  return type === 1 || details.combo === true;
 }
 
 function positiveInt(v: unknown): number | null {
@@ -109,8 +129,7 @@ export function normalize(type: LiveEventType, raw: Raw, now = Date.now(), strea
       const giftId = String(raw.giftId ?? raw.giftDetails?.id ?? '');
       const details = raw.giftDetails ?? raw.gift ?? {};
       // Tür 1 = seri hediye (gül vb.). Seri sürerken artan toplamla ara güncellemeler gelir.
-      const giftType = Number(details.giftType ?? raw.giftType);
-      const streak = giftType === 1;
+      const streak = isStreakGift(raw);
       if (streak && !raw.repeatEnd && !streaks) return { ok: false, reason: 'skip' };
 
       const known = findGift(giftId);

@@ -2,9 +2,16 @@
 import type { ControlCommand, LiveEvent, SimulateRequest } from '../../shared/events.ts';
 import { KNOWN_GIFTS } from '../../shared/gifts.ts';
 import { LiveClient } from './net/live.ts';
+import { mountDugunPanel } from './games/dugun/panel.ts';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const live = new LiveClient();
+mountDugunPanel($('dugunPanel'), live);
+if (new URLSearchParams(location.search).get('game') === 'dugun') {
+  document.title = 'Düğün Dernek · Yönetim';
+  document.querySelector('h1')!.textContent = 'Düğün Dernek · Yönetim';
+  $('genericGameControls').hidden = true;
+}
 
 const simName = () => $<HTMLInputElement>('simName').value.trim() || undefined;
 const simulate = (event: SimulateRequest) => live.send({ kind: 'simulate', event });
@@ -39,6 +46,7 @@ function describe(e: LiveEvent): string {
     case 'comment': return `💬 ${e.viewer.name}: ${e.text}`;
     case 'like': return `❤ ${e.viewer.name} ×${e.count}`;
     case 'gift': return `🎁 ${e.viewer.name}: ${e.giftName} ×${e.count} (${e.value})`;
+    case 'gift-finished': return `✓ Seri tamamlandı: ${e.viewer.name}, ${e.giftName} ×${e.count}`;
     default: return `• ${e.viewer.name} ${e.type}`;
   }
 }
@@ -46,7 +54,8 @@ function describe(e: LiveEvent): string {
 live.on((msg) => {
   if (msg.kind === 'status') {
     const pill = $('status');
-    pill.textContent = `${msg.status.source} · ${msg.status.state}`;
+    const labels = { idle: 'TikTok bağlı değil', connected: 'TikTok bağlı', connecting: 'Bağlanıyor', retrying: 'Yeniden deneniyor', error: 'Bağlantı hatası', ended: 'Yayın bitti' };
+    pill.textContent = labels[msg.status.state];
     pill.dataset.state = msg.status.state;
     $('message').textContent = msg.status.message;
   } else if (msg.kind === 'event') {

@@ -54,7 +54,7 @@ start "" "node_modules\electron\dist\electron.exe" desktop\main.cjs
 
 rem Kontrol paneli: normal tarayicida (sunucunun acilmasini bekle)
 timeout /t 8 /nobreak >nul
-start "" http://127.0.0.1:4300/panel
+start "" "http://127.0.0.1:4300/panel?game=%OYUN%"
 exit /b 0
 
 :hata

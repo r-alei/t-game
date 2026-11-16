@@ -4,7 +4,7 @@ TikTok LIVE için three.js ile yazılmış etkileşimli yayın oyunu altyapısı
 
 İlk oyun: **Boğaz Vapuru** (varsayılan). Kurallar ve hediye eşlemesi: [client/src/games/vapur/README.md](client/src/games/vapur/README.md).
 
-**Düğün Var!** oyunu da hazırdır: sahne boş başlar ve gerçek izleyicilerle dolar. Gül ×1 halaybaşı, aynı seride Gül ×10 gelin, Gül ×20 damat; Parmak Kalp ×1 kaynana yapar. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
+**Düğün Dernek** oyunu da hazırdır: sahne boş başlar ve gerçek izleyicilerle dolar. Seri sonunda Gül ×1 halaybaşı, Gül ×10 gelin, Gül ×20 damat; GG ×5 davulcu, GG ×10 zurnacı; Parmak Kalp ×10 kaynana yapar. Seri sırasında ara roller verilmez. Güncel kurallar: [client/src/games/dugun/README.md](client/src/games/dugun/README.md).
 
 ## Başka bilgisayarda kurulum ve birlikte geliştirme
 
@@ -18,6 +18,8 @@ npm run dev
 ```
 
 Düğün ekranı: `http://127.0.0.1:4300/?game=dugun`. Kontrol paneli: `http://127.0.0.1:4300/panel`. Canlı yayın bağlantısı olmadan paneldeki test düğmeleriyle oynanabilir; Gül ×10 ve Gül ×20 düğmeleri rol değişimlerini denetir. Windows yayın penceresi için `client/src/games/dugun/BASLAT.cmd` çalıştırılır.
+
+Düğün yönetimi: `http://127.0.0.1:4300/panel?game=dugun`. Yayın öncesi isim yazarak gelin/damat/kaynana/halaybaşı atayabilir, başlangıç kadrosu kaydedebilir, hediyeleri ve adetlerini, süreyi, kamerayı ve efektleri yönetebilirsin. Detaylar [Düğün README](client/src/games/dugun/README.md) içinde.
 
 Her değişiklik için `main` üzerinden ayrı dal açıp pull request ile birleştirin:
 
@@ -90,7 +92,7 @@ client/
       Game.ts      Her oyunun uyduğu arayüz
       registry.ts  Oyun listesi (?game=ad ile seçilir)
       vapur/       Boğaz Vapuru (kendi README.md ve BASLAT.cmd'si içinde)
-      dugun/       Düğün Var! (?game=dugun)
+      dugun/       Düğün Dernek (?game=dugun)
       demo/        Altyapı testi için örnek oyun (?game=demo)
 tests/             Vitest testleri
 docs/              Oyunlardan bağımsız fikir belgeleri (tek oyuna ait belge oyunun klasörüne gider)

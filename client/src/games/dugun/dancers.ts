@@ -211,6 +211,7 @@ export class Dancer {
   lastActive = 0;
   /** Etiketi her zaman göster (gelin, damat, halaybaşı) */
   pinnedTag = false;
+  namesVisible = true;
   readonly phase = Math.random() * 10;
   readonly color: string;
 
@@ -429,6 +430,15 @@ export class Dancer {
     this.motion = { kind: 'walk', from: this.group.position.clone(), to: to.clone(), t: 0, dur: seconds };
   }
 
+  /** Yönetici/rol değişimi eski düşme veya fırlatma hareketini sonlandırır. */
+  settle(): void {
+    this.motion = { kind: 'idle' };
+    this.group.position.y = 0;
+    this.body.position.y = 0;
+    this.body.rotation.set(0, 0, 0);
+    this.hopUntil = this.waveUntil = 0;
+  }
+
   /** `delay` sn sonra yere yığılır; düştükten `seconds` sn sonra kalkar */
   fall(now: number, seconds: number, delay = 0): void {
     if (this.motion.kind === 'thrown') return;
@@ -605,7 +615,7 @@ export class Dancer {
 
     // ---- etiket ve balon
     if (this.tag) {
-      const visible = focus ? focus === this : this.pinnedTag || now < this.tagUntil;
+      const visible = this.namesVisible && (focus ? focus === this : this.pinnedTag || now < this.tagUntil);
       const mat = this.tag.material;
       mat.opacity += ((visible ? 1 : 0) - mat.opacity) * Math.min(1, dt * 5);
       this.tag.visible = mat.opacity > 0.02;
@@ -873,27 +883,64 @@ export class Ring {
 
   /** Halkanın yeni elemanının gireceği nokta (zincirin sonu) */
   tailPoint(): THREE.Vector3 {
-    return this.pointAt(this.order.length, new THREE.Vector3());
+    const n = this.order.length + 1;
+    return this.pointAt(n - 1, this.layout(n), new THREE.Vector3());
   }
 
-  private pointAt(i: number, out: THREE.Vector3): THREE.Vector3 {
-    const a = this.offset - (i * RING.spacing) / this.radius;
-    return out.set(Math.sin(a) * this.radius, 0, Math.cos(a) * this.radius);
+  /**
+   * Sıra düzeni. Zincir tek çembere sığdıkça tek sıradır; dış çember RING.maxRadius'a varınca
+   * içeride ikinci, üçüncü sıra açılır. Kişiler sıralara çevreleriyle orantılı dağılır.
+   * Bütün sıralar dolarsa aralık sıklaşır (halay sınırsız, ama pistten taşmaz).
+   */
+  private layout(n: number): { r: number; count: number; step: number; start: number }[] {
+    const full = Math.PI * 2 * RING.arc;
+    if ((n * RING.spacing) / full <= RING.maxRadius) {
+      return [{ r: this.radius, count: n, step: RING.spacing / this.radius, start: 0 }];
+    }
+    const cap = (r: number) => Math.max(1, Math.floor((full * r) / RING.spacing));
+    const radii = [this.radius];
+    let total = cap(this.radius);
+    while (total < n && radii.length < RING.maxRows) {
+      const r = this.radius - radii.length * RING.rowGap;
+      radii.push(r);
+      total += cap(r);
+    }
+    const sumR = radii.reduce((a, b) => a + b, 0);
+    let start = 0;
+    return radii.map((r, j) => {
+      const left = n - start;
+      const count = j === radii.length - 1 ? left : Math.min(left, Math.round((n * r) / sumR));
+      const row = { r, count, step: Math.min(RING.spacing / r, full / Math.max(1, count)), start };
+      start += count;
+      return row;
+    });
+  }
+
+  private pointAt(i: number, rows: ReturnType<Ring['layout']>, out: THREE.Vector3): THREE.Vector3 {
+    let j = 0;
+    while (j < rows.length - 1 && i >= rows[j].start + rows[j].count) j++;
+    const row = rows[j];
+    // İç sıralar biraz kaydırılır: arkadaki sıra öndekinin tam arkasında kalıp gizlenmesin
+    const a = this.offset + j * 0.35 - (i - row.start) * row.step;
+    return out.set(Math.sin(a) * row.r, 0, Math.cos(a) * row.r);
   }
 
   update(dt: number, beat: Beat, beatsPerSecond: number): void {
     const n = Math.max(this.order.length, 1);
-    // Zincir çemberin %85'ini kaplar
-    const wanted = Math.max(RING.minRadius, (n * RING.spacing) / (Math.PI * 2 * 0.85));
+    // Zincir çemberin %85'ini kaplar; dış sıra RING.maxRadius'u geçmez
+    const wanted = Math.min(RING.maxRadius, Math.max(RING.minRadius, (n * RING.spacing) / (Math.PI * 2 * RING.arc)));
     this.radius += (wanted - this.radius) * Math.min(1, dt * 0.8);
     // Halay müzik çaldıkça sağa doğru ilerler; tekme vuruşunda durur
     if (beat.playing) this.offset += dt * beatsPerSecond * 0.09;
+    const rows = this.layout(this.order.length);
+    const rowStarts = new Set(rows.map((r) => r.start));
     const order = this.order;
     for (let i = 0; i < order.length; i++) {
       const d = order[i];
-      const p = this.pointAt(i, (d.ringTarget ??= new THREE.Vector3()));
-      d.links[0] = order[i - 1] ?? null;
-      d.links[1] = order[i + 1] ?? null;
+      const p = this.pointAt(i, rows, (d.ringTarget ??= new THREE.Vector3()));
+      // Sıra başında/sonunda el bırakılır: sıralar arası el uzatılmaz
+      d.links[0] = rowStarts.has(i) ? null : (order[i - 1] ?? null);
+      d.links[1] = rowStarts.has(i + 1) ? null : (order[i + 1] ?? null);
       // Yüz kameraya (+z) dönük ama omuzlar zincir boyunca: arka yarıda halkanın içine, ön yarıda
       // dışarı bakar. Eskiden yanlarda yüz zincir yönüne dönüyor, komşular önde/arkada kalıyordu.
       const len = Math.hypot(p.x, p.z) || 1;

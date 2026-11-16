@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { GiftStreaks, cleanName, normalize } from '../server/normalize.ts';
+import { GiftStreaks, cleanName, normalize, normalizeGiftCompletion } from '../server/normalize.ts';
 import { Dedupe } from '../server/dedupe.ts';
 
 const user = { userId: '42', nickname: 'Ayşe', profilePicture: { url: ['https://p.example/a.jpg'] } };
 
 describe('normalize', () => {
+  it('seri sonunda artış sıfır olsa bile ayrı tamamlama olayı üretir; hediye artışını tekrar saymaz', () => {
+    const streaks = new GiftStreaks();
+    const raw = { user, giftId: '5655', groupId: 's1', repeatCount: 20, giftDetails: { giftType: 1, diamondCount: 1 } };
+    expect(normalize('gift', { ...raw, repeatEnd: false }, 0, streaks)).toMatchObject({ ok: true, event: { type: 'gift', count: 20 } });
+    expect(normalize('gift', { ...raw, repeatEnd: true }, 0, streaks)).toMatchObject({ ok: false, reason: 'skip' });
+    expect(normalizeGiftCompletion({ ...raw, repeatEnd: true }, 0)).toMatchObject({ ok: true, event: { type: 'gift-finished', count: 20, id: 'finished:gift:42:5655:group:s1' } });
+    expect(normalizeGiftCompletion({ ...raw, repeatEnd: false }, 0)).toMatchObject({ ok: false, reason: 'skip' });
+    expect(normalizeGiftCompletion({ ...raw, giftDetails: { giftType: 0, diamondCount: 1 }, repeatEnd: true }, 0)).toMatchObject({ ok: false, reason: 'skip' });
+  });
   it('yorumu çevirir', () => {
     const r = normalize('comment', { user, comment: ' selam ', common: { msgId: '9' } });
     expect(r).toMatchObject({ ok: true, event: { type: 'comment', text: 'selam', id: 'comment:9' } });

@@ -329,6 +329,12 @@ export class WeddingCar {
     }
   }
 
+  reset(): void {
+    this.phase = 'off';
+    this.t = 0;
+    this.group.visible = false;
+  }
+
   update(dt: number): void {
     if (this.phase === 'off') return;
     this.t += dt;

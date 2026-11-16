@@ -12,6 +12,7 @@ import type { ClientMessage, ConnectionStatus, LiveEvent, ServerMessage } from '
 import { Dedupe } from './dedupe.ts';
 import { TikTokSource } from './sources/tiktok.ts';
 import { crowd, simulate } from './sources/simulator.ts';
+import { DugunControl } from './dugunControl.ts';
 
 // .env varsa oku (EULER_API_KEY gibi gizli değerler buraya yazılır, git'e girmez)
 try {
@@ -28,6 +29,7 @@ const root = process.cwd();
 // ---- Durum ve yayın ------------------------------------------------------
 const clients = new Set<WebSocket>();
 const dedupe = new Dedupe();
+const dugunControl = new DugunControl();
 let status: ConnectionStatus = { source: 'none', state: 'idle', username: '', message: 'Bağlı değil' };
 
 function broadcast(msg: ServerMessage) {
@@ -37,6 +39,7 @@ function broadcast(msg: ServerMessage) {
 
 function publishEvent(event: LiveEvent) {
   if (!dedupe.accept(event.id)) return;
+  dugunControl.rememberEvent(event);
   broadcast({ kind: 'event', event });
 }
 
@@ -49,7 +52,8 @@ function setStatus(next: ConnectionStatus) {
 const tiktok = new TikTokSource({ onEvent: publishEvent, onStatus: setStatus });
 let stopCrowd: (() => void) | null = null;
 
-function handle(msg: ClientMessage) {
+function handle(msg: ClientMessage, ws: WebSocket) {
+  if (msg.kind.startsWith('dugun-')) { dugunControl.handle(ws, msg); return; }
   switch (msg.kind) {
     case 'connect':
       if (msg.username.trim()) void tiktok.start(msg.username);
@@ -103,7 +107,8 @@ if (isProd) {
     appType: 'mpa',
   });
   server.on('request', (req, res) => {
-    if (req.url === '/panel') req.url = '/panel.html';
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    if (url.pathname === '/panel') req.url = `/panel.html${url.search}`;
     vite.middlewares(req, res);
   });
 }
@@ -120,12 +125,12 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ kind: 'status', status } satisfies ServerMessage));
   ws.on('message', (data) => {
     try {
-      handle(JSON.parse(String(data)) as ClientMessage);
+      handle(JSON.parse(String(data)) as ClientMessage, ws);
     } catch (err) {
       console.warn('[ws] geçersiz mesaj', err);
     }
   });
-  ws.on('close', () => clients.delete(ws));
+  ws.on('close', () => { clients.delete(ws); dugunControl.close(ws); });
 });
 
 server.listen(PORT, HOST, () => {

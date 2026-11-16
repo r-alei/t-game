@@ -1,13 +1,12 @@
 /**
  * Ekran yazıları:
- *   üstte: başlık + kalan süre, gelin/damat kartları (tahtta kalma süresiyle), tek satır hediye menüsü, tempo çubuğu
+ *   üstte: başlık + kalan süre, tek satır hediye menüsü, tempo çubuğu
  *   ortada: son 30 sn dev geri sayım
  *   altta: sunucu satırı ("ayse'den bir çeyrek!") ve "Yorum yaz, halaya katıl" çağrısı
  * Kullanıcı adları yalnız textContent ile yazılır.
  */
-import type { Viewer } from '../../../../shared/events.ts';
 import { SAFE, SCREEN } from '../../engine/layout.ts';
-import { MENU, TEMPO } from './config.ts';
+import { MENU, TEMPO, type MenuItem } from './config.ts';
 
 /** TikTok üst barının (0–200) hemen altı */
 const TOP = 206;
@@ -18,16 +17,7 @@ const css = /* css */ `
 .dg-title { font:900 46px/1 'Segoe UI',sans-serif; letter-spacing:1px; color:#fff;
   text-shadow:0 3px 0 #9a1020, 0 5px 14px rgba(0,0,0,.45); }
 .dg-clock { font:800 34px/1 'Segoe UI',sans-serif; color:#fff; background:rgba(120,10,30,.62); padding:8px 18px; border-radius:30px; }
-.dg-couple { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.dg-card { display:flex; align-items:center; gap:12px; padding:8px 14px; border-radius:24px; min-width:0;
-  background:rgba(255,255,255,.88); box-shadow:0 4px 14px rgba(0,0,0,.25); }
-.dg-card .ic { font-size:44px; line-height:1; }
-.dg-card .who { min-width:0; flex:1; }
-.dg-card .nm { font:900 32px/1.1 'Segoe UI',sans-serif; color:#2a1418; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.dg-card .tm { font:700 24px/1.1 'Segoe UI',sans-serif; color:#a3122a; }
-.dg-card.swap { animation: dg-pop .7s cubic-bezier(.2,1.6,.4,1); }
-@keyframes dg-pop { 0% { transform:scale(1.25); background:#ffe08a } 100% { transform:scale(1) } }
-.dg-menu { display:grid; grid-template-columns:repeat(${MENU.length}, minmax(0, 1fr)); gap:6px; padding:6px 6px;
+.dg-menu { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; padding:8px;
   background:rgba(120,10,30,.5); border-radius:22px; }
 .dg-menu div { display:flex; flex-direction:column; align-items:center; gap:4px;
   font:900 22px/1 'Segoe UI',sans-serif; color:#fff; text-shadow:0 2px 3px #000; white-space:nowrap; min-width:0; }
@@ -61,17 +51,11 @@ const css = /* css */ `
 .dg-cta b { color:#ffd25e; }
 `;
 
-interface Card {
-  el: HTMLDivElement;
-  name: HTMLDivElement;
-  time: HTMLDivElement;
-}
-
 export class Hud {
   private readonly root = document.createElement('div');
   private readonly clock: HTMLDivElement;
-  private readonly cards: Record<'gelin' | 'damat', Card>;
   private readonly menuCells = new Map<string, HTMLDivElement[]>();
+  private readonly menu = div('dg-menu');
   private readonly tempo: HTMLDivElement;
   private readonly tempoFill: HTMLElement;
   private readonly tempoText: HTMLSpanElement;
@@ -89,45 +73,17 @@ export class Hud {
     const head = div('dg-head');
     const row1 = div('dg-row1');
     const title = div('dg-title');
-    title.textContent = 'DÜĞÜN VAR!';
+    title.textContent = 'DÜĞÜN DERNEK';
     this.clock = div('dg-clock');
     row1.append(title, this.clock);
 
-    const couple = div('dg-couple');
-    const card = (icon: string): Card => {
-      const el = div('dg-card');
-      const ic = div('ic');
-      ic.textContent = icon;
-      const who = div('who');
-      const name = div('nm');
-      const time = div('tm');
-      who.append(name, time);
-      el.append(ic, who);
-      couple.append(el);
-      return { el, name, time };
-    };
-    this.cards = { gelin: card('👰'), damat: card('🤵') };
-
-    const menu = div('dg-menu');
-    for (const item of MENU) {
-      const cell = div('');
-      const img = document.createElement('img');
-      img.src = item.icon;
-      img.alt = item.giftId === '5655' ? 'Gül' : item.giftId === '5487' ? 'Parmak Kalp' : 'Konfeti';
-      const label = document.createElement('span');
-      label.textContent = item.label;
-      const amount = document.createElement('span');
-      amount.textContent = `×${item.count}`;
-      cell.append(img, amount, label);
-      menu.append(cell);
-      this.menuCells.set(item.giftId, [...(this.menuCells.get(item.giftId) ?? []), cell]);
-    }
+    this.setMenu(MENU);
 
     this.tempo = div('dg-tempo');
     this.tempoFill = document.createElement('i');
     this.tempoText = document.createElement('span');
     this.tempo.append(this.tempoFill, this.tempoText);
-    head.append(row1, couple, menu, this.tempo);
+    head.append(row1, this.menu, this.tempo);
 
     this.countLabel = div('dg-count-label');
     this.countLabel.textContent = 'GELİN ARABASI GELİYOR!';
@@ -138,7 +94,7 @@ export class Hud {
     ann.append(this.announceEl);
 
     const cta = div('dg-cta');
-    const messages = ['Yorum yaz, <b>halaya katıl</b> 💃', 'Beğen, <b>davul hızlansın</b> 🥁', '<b>Gül ×10</b> gelin · <b>Gül ×20</b> damat'];
+    const messages = ['Yorum yaz, <b>halaya katıl</b> 💃', 'Beğen, <b>davul hızlansın</b> 🥁', 'Hediye menüsünden <b>rolünü seç</b>'];
     let i = 0;
     cta.innerHTML = `<span>${messages[0]}</span>`;
     this.ctaTimer = window.setInterval(() => {
@@ -154,14 +110,21 @@ export class Hud {
     this.clock.textContent = `⏱ ${mmss(secondsLeft)}`;
   }
 
-  setRole(role: 'gelin' | 'damat', viewer: Viewer | null, heldSeconds: number, swapped = false): void {
-    const c = this.cards[role];
-    c.name.textContent = viewer ? viewer.name : role === 'gelin' ? 'Gelin kim olacak?' : 'Damat kim olacak?';
-    c.time.textContent = viewer ? `${mmss(heldSeconds)} tahtta` : role === 'gelin' ? 'Gül ×10, gelin ol' : 'Gül ×20, damat ol';
-    if (swapped) {
-      c.el.classList.remove('swap');
-      void c.el.offsetWidth;
-      c.el.classList.add('swap');
+  setVisible(visible: boolean): void {
+    this.root.hidden = !visible;
+  }
+
+  setMenu(items: readonly MenuItem[]): void {
+    this.menu.replaceChildren();
+    this.menuCells.clear();
+    for (const item of items) {
+      const cell = div('');
+      const img = document.createElement('img');
+      img.src = item.icon; img.alt = item.label;
+      const amount = document.createElement('span'); amount.textContent = `×${item.count}`;
+      const label = document.createElement('span'); label.textContent = item.label;
+      cell.append(img, amount, label); this.menu.append(cell);
+      this.menuCells.set(item.giftId, [...(this.menuCells.get(item.giftId) ?? []), cell]);
     }
   }
 

@@ -1,5 +1,5 @@
 /**
- * Düğün Var! ayarları. Hediye → an eşlemesi ve süreler tek yerde durur.
+ * Düğün Dernek ayarları. Hediye → an eşlemesi ve süreler tek yerde durur.
  */
 import type { GiftEvent } from '../../../../shared/events.ts';
 
@@ -9,6 +9,8 @@ export type MomentId =
   | 'gelin'    // gelin ol
   | 'damat'    // damat ol
   | 'kaynana'
+  | 'davulcu'
+  | 'zurnaci'
   | 'havaya';  // damadı havaya atın
 
 export interface MenuItem {
@@ -19,20 +21,22 @@ export interface MenuItem {
   moment: MomentId;
 }
 
-/** Ekrandaki hediye menüsü (tek satır) */
+/** Ekrandaki hediye menüsü; seride erişilen en yüksek eşik tek rol seçer. */
 export const MENU: readonly MenuItem[] = [
   { giftId: '5655', count: 1, icon: '/gifts/rose.webp', label: 'HALAYBAŞI', moment: 'mendil' },
   { giftId: '5655', count: 10, icon: '/gifts/rose.webp', label: 'GELİN OL', moment: 'gelin' },
   { giftId: '5655', count: 20, icon: '/gifts/rose.webp', label: 'DAMAT OL', moment: 'damat' },
-  { giftId: '5487', count: 1, icon: '/gifts/finger-heart.webp', label: 'KAYNANA OL', moment: 'kaynana' },
+  { giftId: '6064', count: 5, icon: '/gifts/gg.webp', label: 'DAVULCU OL', moment: 'davulcu' },
+  { giftId: '6064', count: 10, icon: '/gifts/gg.webp', label: 'ZURNACI OL', moment: 'zurnaci' },
+  { giftId: '5487', count: 10, icon: '/gifts/finger-heart.webp', label: 'KAYNANA OL', moment: 'kaynana' },
   { giftId: '5585', count: 1, icon: '/gifts/confetti.webp', label: 'HAVAYA AT', moment: 'havaya' },
 ];
 
-/** Aynı seride yeni aşılan en yüksek eşik uygulanır. 11. gül gelini halaybaşı yapmaz. */
-export function momentFor(event: GiftEvent): MomentId | null {
+/** Tamamlanmış hediyenin toplamından ulaşılan en yüksek eşik seçilir. */
+export function momentFor(event: GiftEvent, menu: readonly MenuItem[] = MENU): MomentId | null {
   const total = event.streakTotal ?? event.count;
   const previous = total - event.count;
-  return MENU.filter((m) => m.giftId === event.giftId && m.count > previous && m.count <= total)
+  return menu.filter((m) => m.giftId === event.giftId && m.count > previous && m.count <= total)
     .sort((a, b) => b.count - a.count)[0]?.moment ?? null;
 }
 
@@ -80,4 +84,11 @@ export const RING = {
   /** Kişiler arası yay uzunluğu */
   spacing: 1.05,
   minRadius: 4.2,
+  /** Dış sıra bundan büyümez: halka pistte ve kadrajda kalır */
+  maxRadius: 8.5,
+  /** Dış sıra dolunca içeride yeni sıra açılır; sıralar arası mesafe */
+  rowGap: 1.5,
+  maxRows: 3,
+  /** Bir sıranın çemberin kaplayabileceği oranı (baş ile son arasında boşluk kalır) */
+  arc: 0.85,
 } as const;

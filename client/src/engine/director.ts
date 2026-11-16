@@ -35,6 +35,7 @@ export class Director {
   private readonly pos = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
   private ready = false;
+  private held: Shot | null = null;
   private shake = 0;
   /** Kamera yumuşaklığı: büyük = hızlı yetişir */
   smoothing = 2.4;
@@ -46,6 +47,7 @@ export class Director {
 
   /** Çekimi kuyruğa alır. Alınamadıysa false döner. */
   push(shot: Shot): boolean {
+    if (this.held) return false;
     if (this.queue.length >= MAX_QUEUE) {
       const weakest = this.queue[this.queue.length - 1];
       if (weakest.priority >= shot.priority) return false;
@@ -54,6 +56,13 @@ export class Director {
     this.queue.push(shot);
     this.queue.sort((a, b) => b.priority - a.priority);
     return true;
+  }
+
+  hold(shot: Shot | null): void {
+    this.held = shot;
+    this.current = null;
+    this.queue = [];
+    this.t = 0;
   }
 
   /** Şu anki çekimin odağı (yoksa null) */
@@ -78,7 +87,11 @@ export class Director {
     const preempt = this.queue.length > 0 && this.current && this.queue[0].priority > this.current.priority + 1;
 
     let snap = false;
-    if (finished || (idleNow && this.queue.length > 0) || preempt) {
+    if (this.held && this.current !== this.held) {
+      this.current = this.held;
+      this.t = 0;
+      snap = true;
+    } else if (!this.held && (finished || (idleNow && this.queue.length > 0) || preempt)) {
       this.current = this.queue.shift() ?? this.nextIdle();
       this.t = 0;
       snap = !!this.current.cut;

@@ -4,6 +4,8 @@
  * oyun kodu TikTok kütüphanesinin ham verisini hiç görmez.
  */
 
+import type { DugunCommand, DugunState } from './dugun.ts';
+
 export interface Viewer {
   /** TikTok'un sabit kullanıcı kimliği */
   id: string;
@@ -44,12 +46,17 @@ export interface GiftEvent extends BaseEvent {
   value: number;
 }
 
+/** Rol seçimi için seri sonunun tam toplamı; artış olayı yerine geçmez. */
+export interface GiftFinishedEvent extends Omit<GiftEvent, 'type'> {
+  type: 'gift-finished';
+}
+
 export interface SimpleEvent extends BaseEvent {
   type: 'follow' | 'share' | 'join';
 }
 
-export type LiveEvent = CommentEvent | LikeEvent | GiftEvent | SimpleEvent;
-export type LiveEventType = LiveEvent['type'];
+export type LiveEvent = CommentEvent | LikeEvent | GiftEvent | GiftFinishedEvent | SimpleEvent;
+export type LiveEventType = Exclude<LiveEvent['type'], 'gift-finished'>;
 
 export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'retrying' | 'ended' | 'error';
 
@@ -64,14 +71,23 @@ export interface ConnectionStatus {
 export type ServerMessage =
   | { kind: 'event'; event: LiveEvent }
   | { kind: 'status'; status: ConnectionStatus }
-  | { kind: 'control'; command: ControlCommand };
+  | { kind: 'control'; command: ControlCommand }
+  | { kind: 'dugun-command'; command: DugunCommand }
+  | { kind: 'dugun-state'; state: DugunState | null }
+  | { kind: 'dugun-chat'; events: CommentEvent[] }
+  | { kind: 'dugun-error'; message: string };
 
 /** Panel → sunucu mesajları (WebSocket) */
 export type ClientMessage =
   | { kind: 'connect'; username: string }
   | { kind: 'disconnect' }
   | { kind: 'simulate'; event: SimulateRequest }
-  | { kind: 'control'; command: ControlCommand };
+  | { kind: 'control'; command: ControlCommand }
+  | { kind: 'dugun-command'; command: DugunCommand }
+  | { kind: 'dugun-state'; state: DugunState }
+  | { kind: 'dugun-subscribe' }
+  | { kind: 'dugun-register' }
+  | { kind: 'dugun-control'; command: ControlCommand };
 
 export type SimulateRequest =
   | { type: 'comment'; text: string; name?: string }
